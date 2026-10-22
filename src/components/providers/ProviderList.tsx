@@ -68,6 +68,8 @@ const verticalDragModifiers: Modifier[] = [
 interface ProviderListProps {
   providers: Record<string, Provider>;
   currentProviderId: string;
+  /** 模式页里真正生效的那家；故障转移队列等特殊场景可不传 */
+  activeProviderId?: string | null;
   appId: AppId;
   /** 直连切换 / 共存式的添加 / Pi 的启用 / Claude Desktop 的切换 */
   onSwitch: (provider: Provider) => void;
@@ -99,6 +101,7 @@ interface ProviderListProps {
 export function ProviderList({
   providers,
   currentProviderId,
+  activeProviderId,
   appId,
   onSwitch,
   onEdit,
@@ -123,6 +126,7 @@ export function ProviderList({
   const { sortedProviders, sensors, handleDragEnd } = useDragSort(
     providers,
     appId,
+    activeProviderId ?? currentProviderId,
   );
 
   const { data: opencodeLiveIds, isPending: isOpencodeLiveIdsPending } =

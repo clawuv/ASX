@@ -1181,9 +1181,11 @@ function App() {
     // 合并后的主页签始终可见；OpenClaw / Hermes 的专属页变成它下面的二级页签。
     const appSegmentView = isProviderListActive ? "providers" : currentView;
     const agentTabs = (
-      <div className="shrink-0 overflow-x-auto px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2">
         <PageTabs
-          className="min-w-max"
+          scrollable
+          leftScrollLabel={t("common.scrollTabsLeft")}
+          rightScrollLabel={t("common.scrollTabsRight")}
           aria-label={t("nav.agents")}
           idPrefix="agents-app"
           value={activeApp}

@@ -191,11 +191,19 @@ export function AppsPage() {
     );
   };
 
-  const visibilitySwitch = (app: AppId) => (
+  const isToolInstalled = (tool: ToolName) => {
+    if (tools.loadingTools[tool]) return false;
+    const info = tools.toolVersionByName.get(tool);
+    return Boolean(info?.version || info?.installed_but_broken);
+  };
+
+  const visibilitySwitch = (app: AppId, installed = true) => (
     <Switch
       size="sm"
       checked={visibleApps[app]}
-      disabled={!settings || (visibleApps[app] && visibleCount <= 1)}
+      disabled={
+        !settings || !installed || (visibleApps[app] && visibleCount <= 1)
+      }
       onCheckedChange={(checked) => setVisible(app, checked)}
       aria-label={t("appsPage.showInSidebar", { name: APP_DISPLAY_NAME[app] })}
     />
@@ -216,6 +224,21 @@ export function AppsPage() {
         time: formatCheckedAt(tools.lastCheckedAt, i18n.language),
       })
     : t("appsPage.neverChecked");
+
+  const isRowInstalled = (row: Row) =>
+    row.kind === "desktop"
+      ? Boolean(desktopStatus?.configured)
+      : isToolInstalled(row.tool);
+  const isRowVisible = (row: Row) =>
+    visibleApps[
+      row.kind === "desktop" ? "claude-desktop" : TOOL_APP_IDS[row.tool]
+    ];
+  // 稳定排序：已显示 > 已安装 > 未安装；同组内的相对顺序不变。
+  const displayRows = [...filteredRows].sort((a, b) => {
+    const visibleDifference = Number(isRowVisible(b)) - Number(isRowVisible(a));
+    if (visibleDifference !== 0) return visibleDifference;
+    return Number(isRowInstalled(b)) - Number(isRowInstalled(a));
+  });
 
   return (
     <>
@@ -358,7 +381,9 @@ export function AppsPage() {
                 "sticky top-0 z-10 h-11 rounded-t-panel bg-subtle pe-4 ps-4 text-caption font-semibold text-fg-2",
               )}
             >
-              <span>{t("appsPage.columnApp")}</span>
+              <span className="whitespace-nowrap">
+                {t("appsPage.columnName")}
+              </span>
               <span className="text-end">{t("appsPage.columnVersion")}</span>
               {/* 看不见的「安装 / 升级」按钮只用来量宽：操作列始终留出按钮的位置，
                 版本号加载完或检查到新版本、按钮冒出来时，版本列不会被推开。 */}
@@ -385,12 +410,12 @@ export function AppsPage() {
               <span />
             </div>
 
-            {filteredRows.length === 0 ? (
+            {displayRows.length === 0 ? (
               <div className="px-6 py-8 text-center text-body text-fg-2">
                 {t("appsPage.noMatch", { query: searchQuery.trim() })}
               </div>
             ) : (
-              filteredRows.map((row) =>
+              displayRows.map((row) =>
                 row.kind === "desktop" ? (
                   <AppRow
                     key="claude-desktop"
@@ -415,7 +440,10 @@ export function AppsPage() {
                         </HelpTip>
                       </span>
                     }
-                    visibility={visibilitySwitch("claude-desktop")}
+                    visibility={visibilitySwitch(
+                      "claude-desktop",
+                      Boolean(desktopStatus?.configured),
+                    )}
                   />
                 ) : (
                   <ToolRow
@@ -430,7 +458,10 @@ export function AppsPage() {
                         [row.tool]: !prev[row.tool],
                       }))
                     }
-                    visibility={visibilitySwitch(TOOL_APP_IDS[row.tool])}
+                    visibility={visibilitySwitch(
+                      TOOL_APP_IDS[row.tool],
+                      isToolInstalled(row.tool),
+                    )}
                   />
                 ),
               )

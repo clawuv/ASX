@@ -548,6 +548,15 @@ export function SwitchModePanel({
           {...listCallbacks}
           providers={providers}
           currentProviderId={currentProviderId}
+          activeProviderId={
+            active === "direct"
+              ? directId
+              : active === "route" && !failoverOn
+                ? routeId
+                : active === "stack"
+                  ? routeId
+                  : null
+          }
           appId={app}
           isLoading={isLoading}
           onSwitch={(provider) => void onSwitch(provider)}

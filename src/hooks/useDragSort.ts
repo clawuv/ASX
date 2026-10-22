@@ -14,7 +14,11 @@ import type { Provider } from "@/types";
 import { providersApi, type AppId } from "@/lib/api";
 import { isProxyAppId } from "@/config/appConfig";
 
-export function useDragSort(providers: Record<string, Provider>, appId: AppId) {
+export function useDragSort(
+  providers: Record<string, Provider>,
+  appId: AppId,
+  preferredProviderId?: string | null,
+) {
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
 
@@ -25,7 +29,7 @@ export function useDragSort(providers: Record<string, Provider>, appId: AppId) {
         : i18n.language === "zh-TW"
           ? "zh-TW"
           : "en-US";
-    return Object.values(providers).sort((a, b) => {
+    const ordered = Object.values(providers).sort((a, b) => {
       if (a.sortIndex !== undefined && b.sortIndex !== undefined) {
         return a.sortIndex - b.sortIndex;
       }
@@ -40,7 +44,18 @@ export function useDragSort(providers: Record<string, Provider>, appId: AppId) {
 
       return a.name.localeCompare(b.name, locale);
     });
-  }, [providers, i18n.language]);
+    if (!preferredProviderId) return ordered;
+
+    const preferredIndex = ordered.findIndex(
+      (provider) => provider.id === preferredProviderId,
+    );
+    if (preferredIndex <= 0) return ordered;
+
+    return [
+      ordered[preferredIndex],
+      ...ordered.filter((_, index) => index !== preferredIndex),
+    ];
+  }, [providers, i18n.language, preferredProviderId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
