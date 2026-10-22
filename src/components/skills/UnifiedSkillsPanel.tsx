@@ -937,7 +937,7 @@ const UnifiedSkillsPanel: React.FC<UnifiedSkillsPanelProps> = ({
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
-                variant="solid"
+                variant="quiet"
                 size="regular"
                 className="pe-2.5"
                 disabled={controlsDisabled}

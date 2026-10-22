@@ -136,7 +136,7 @@ export const SessionReaderHeader = memo(function SessionReaderHeader({
     resume = (
       <div className="flex shrink-0">
         <Button
-          variant="solid"
+          variant="quiet"
           size="regular"
           onClick={onLaunch}
           className="rounded-e-none pe-3.5 ps-3"
@@ -147,12 +147,12 @@ export const SessionReaderHeader = memo(function SessionReaderHeader({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              variant="solid"
+              variant="quiet"
               size="regular"
               aria-label={t("sessionManager.moreResumeOptions", {
                 defaultValue: "更多恢复方式",
               })}
-              className="w-8 rounded-s-none border-s border-s-[color-mix(in_srgb,var(--action-fg)_20%,transparent)] px-0"
+              className="w-8 rounded-s-none border-s border-border px-0"
             >
               <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
             </Button>
@@ -233,7 +233,7 @@ export const SessionReaderHeader = memo(function SessionReaderHeader({
     // 不能一键恢复：有命令就复制；没有命令按钮禁用，信息栏下面写原因
     resume = (
       <Button
-        variant="solid"
+        variant="quiet"
         size="regular"
         aria-disabled={command ? undefined : true}
         aria-describedby={command ? undefined : "session-resume-note"}

@@ -89,7 +89,7 @@ export const HermesMemorySaveButton: React.FC = () => {
       align="end"
     >
       <Button
-        variant="solid"
+        variant="quiet"
         size="regular"
         className="px-4"
         disabled={saving}

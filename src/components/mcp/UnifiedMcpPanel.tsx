@@ -595,7 +595,7 @@ const UnifiedMcpPanel: React.FC<UnifiedMcpPanelProps> = ({
             </Button>
             <Button
               type="button"
-              variant="solid"
+              variant="quiet"
               size="regular"
               disabled={controlsDisabled}
               onClick={openAdd}

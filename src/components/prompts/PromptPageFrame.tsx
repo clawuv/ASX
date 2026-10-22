@@ -87,7 +87,7 @@ export function PromptPageFrame({
           <>
             {primary ? (
               <Button
-                variant="solid"
+                variant="quiet"
                 size="regular"
                 disabled={primary.disabled}
                 onClick={primary.onClick}
