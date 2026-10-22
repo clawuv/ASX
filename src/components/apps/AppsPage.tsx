@@ -121,11 +121,25 @@ export function AppsPage() {
   const tableRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const isToolInstalled = (tool: ToolName) => {
+    if (tools.loadingTools[tool]) return false;
+    const info = tools.toolVersionByName.get(tool);
+    return Boolean(info?.version || info?.installed_but_broken);
+  };
+
+  const isOptionalAgentTool = (tool: ToolName) =>
+    tool === "mcode" || tool === "agy";
+
   const filteredRows = normalizedSearchQuery
     ? ROWS.filter((row) =>
         appRowName(row).toLowerCase().includes(normalizedSearchQuery),
       )
-    : ROWS;
+    : ROWS.filter(
+        (row) =>
+          row.kind !== "tool"
+            ? true
+            : !isOptionalAgentTool(row.tool) || isToolInstalled(row.tool),
+      );
 
   useLayoutEffect(() => {
     const table = tableRef.current;
@@ -189,12 +203,6 @@ export function AppsPage() {
     void autoSaveSettings({ visibleApps: next }).catch(() =>
       updateSettings({ visibleApps: previous }),
     );
-  };
-
-  const isToolInstalled = (tool: ToolName) => {
-    if (tools.loadingTools[tool]) return false;
-    const info = tools.toolVersionByName.get(tool);
-    return Boolean(info?.version || info?.installed_but_broken);
   };
 
   const visibilitySwitch = (app: AppId, installed = true) => (

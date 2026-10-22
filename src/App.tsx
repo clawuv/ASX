@@ -9,7 +9,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { toast } from "@/lib/toast";
 import { invoke } from "@tauri-apps/api/core";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Provider, VisibleApps } from "@/types";
@@ -201,6 +201,14 @@ function App() {
     }),
     [settingsData?.visibleApps],
   );
+  // MiniMax Code / Antigravity 是导航里的可选智能体；未安装时不让它们出现在
+  // 页签里（同时避免因为探测慢而在加载阶段闪出）。
+  const optionalAgentVersions = useQuery({
+    queryKey: ["tool-versions", "nav"],
+    queryFn: () => settingsApi.getToolVersions(["mcode", "agy"]),
+    enabled: Boolean(visibleApps.mcode || visibleApps.agy),
+    staleTime: 10 * 60 * 1000,
+  });
 
   const getFirstVisibleApp = (): AppId => {
     return APP_IDS.find((app) => visibleApps[app]) ?? "claude";
@@ -211,6 +219,28 @@ function App() {
       setActiveApp(getFirstVisibleApp());
     }
   }, [visibleApps, activeApp]);
+
+  const navVisibleApps = useMemo<VisibleApps>(() => {
+    const installedOptionalAgents = new Set(
+      optionalAgentVersions.data
+        ?.filter((tool) => tool.version || tool.installed_but_broken)
+        .map((tool) => tool.name) ?? [],
+    );
+    return {
+      ...visibleApps,
+      mcode:
+        Boolean(visibleApps.mcode) && installedOptionalAgents.has("mcode"),
+      agy: Boolean(visibleApps.agy) && installedOptionalAgents.has("agy"),
+    };
+  }, [optionalAgentVersions.data, visibleApps]);
+
+  useEffect(() => {
+    if (!navVisibleApps[activeApp]) {
+      setActiveApp(
+        APP_IDS.find((app) => navVisibleApps[app]) ?? "claude",
+      );
+    }
+  }, [navVisibleApps, activeApp]);
 
   // 启动后把其他可见应用的供应商列表预取进缓存：第一次切过去直接有数据，不先画骨架
   const providersPrefetchedRef = useRef(false);
@@ -1190,7 +1220,7 @@ function App() {
           idPrefix="agents-app"
           value={activeApp}
           onValueChange={selectApp}
-          items={APP_IDS.filter((app) => visibleApps[app]).map((app) => ({
+          items={APP_IDS.filter((app) => navVisibleApps[app]).map((app) => ({
             value: app,
             label: (
               <span className="inline-flex items-center gap-1.5">

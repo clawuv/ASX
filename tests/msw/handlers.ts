@@ -280,6 +280,15 @@ export const handlers = [
 
   http.post(`${TAURI_ENDPOINT}/get_settings`, () => success(getSettings())),
 
+  // 导航只探测 MiniMax Code / Antigravity 是否可用；默认视为已安装，
+  // 未安装行为让对应集成测试单独覆盖。
+  http.post(`${TAURI_ENDPOINT}/get_tool_versions`, () =>
+    success([
+      { name: "mcode", version: "1.0.0", installed_but_broken: false },
+      { name: "agy", version: "1.0.0", installed_but_broken: false },
+    ]),
+  ),
+
   http.post(`${TAURI_ENDPOINT}/check_env_conflicts`, () => success([])),
 
   http.post(`${TAURI_ENDPOINT}/save_settings`, async ({ request }) => {
