@@ -221,7 +221,7 @@ function FetchedModelPickerBody({
   const showOwner = models.some((model) => model.ownedBy);
   const renderRow = (id: string, ownedBy: string | null, first: boolean) => (
     <li key={id} className={cn(!first && "border-t border-border")}>
-      <label className="flex cursor-pointer items-center gap-2.5 py-2 pe-3 ps-3.5 hover:bg-subtle">
+      <label className="flex items-center gap-2.5 py-2 pe-3 ps-3.5 hover:bg-subtle">
         <input
           type="checkbox"
           className={CHECKBOX_CLASS}
@@ -323,7 +323,7 @@ function FetchedModelPickerBody({
               total: allIds.length,
             })}
           </span>
-          <label className="flex cursor-pointer items-center gap-1.5">
+          <label className="flex items-center gap-1.5">
             <input
               type="checkbox"
               className={CHECKBOX_CLASS}

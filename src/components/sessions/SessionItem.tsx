@@ -131,7 +131,7 @@ export function SessionItem({
             aria-hidden="true"
             className={cn(
               "absolute inset-0",
-              deletable ? "cursor-pointer" : "cursor-not-allowed",
+              deletable ? "" : "cursor-not-allowed",
             )}
           />
           <Checkbox
@@ -158,7 +158,7 @@ export function SessionItem({
             aria-describedby={hasMeta ? metaId : undefined}
             title={tip}
             onClick={onOpen}
-            className="absolute inset-0 cursor-pointer rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            className="absolute inset-0 rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           />
           <Checkbox
             tabIndex={-1}

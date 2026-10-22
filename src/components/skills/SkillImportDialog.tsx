@@ -219,7 +219,7 @@ export function SkillImportDialog({
           {appChoices.map((app) => (
             <label
               key={app}
-              className="flex h-6 cursor-pointer items-center gap-2 text-body"
+              className="flex h-6 items-center gap-2 text-body"
             >
               <input
                 type="checkbox"

@@ -30,6 +30,7 @@ mod mcode_config;
 mod mcp;
 pub mod mode;
 mod model_capabilities;
+mod notifications;
 mod openclaw_config;
 mod opencode_config;
 mod panic_hook;
@@ -540,6 +541,11 @@ pub fn run() {
                 {
                     // 若配置不完整（如缺少 pubkey），跳过 Updater 而不中断应用
                     log::warn!("初始化 Updater 插件失败，已跳过：{e}");
+                }
+
+                // 系统通知：窗口隐藏时兜底故障转移等后台事件（见 notifications.rs）
+                if let Err(e) = app.handle().plugin(tauri_plugin_notification::init()) {
+                    log::warn!("初始化系统通知插件失败，已跳过：{e}");
                 }
             }
 

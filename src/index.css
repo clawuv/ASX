@@ -21,6 +21,25 @@ textarea,
   cursor: text !important;
 }
 
+/* 界面元素默认不可选中：原生应用的标签、按钮、标题，双击不选字。
+   可编辑区域（下方选择器）和标记 data-selectable 的内容区（会话正文、
+   需要复制报错信息的对话框正文等）除外。 */
+html {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input:not([type="button"]):not([type="submit"]):not([type="reset"]):not(
+    [type="checkbox"]
+  ):not([type="radio"]):not([type="range"]),
+textarea,
+[contenteditable]:not([contenteditable="false"]),
+[data-selectable],
+[data-selectable] * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 @layer base {
   /* shadcn 组件用的 HSL token（可以带 /50 这类透明度），取值对齐 v7 设计稿的 tokens.css */
   :root {
@@ -488,26 +507,27 @@ html[data-window-active="false"] .status-heartbeat {
   }
 }
 
-/* 细滚动条常显：不设 scrollbar-width / scrollbar-color，
-   否则 Chromium（WebView2）会忽略下面的 ::-webkit-scrollbar 样式 */
-::-webkit-scrollbar {
+/* 细滚动条常显（Windows/Linux）：不设 scrollbar-width / scrollbar-color，
+   否则 Chromium（WebView2）会忽略下面的 ::-webkit-scrollbar 样式。
+   macOS 不套用：保留系统 overlay 滚动条（悬停出现、停下淡出）。 */
+body:not(.is-mac) ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-::-webkit-scrollbar-track,
-::-webkit-scrollbar-corner {
+body:not(.is-mac) ::-webkit-scrollbar-track,
+body:not(.is-mac) ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+body:not(.is-mac) ::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 9999px;
   background-clip: padding-box;
   background-color: var(--border-strong);
 }
 
-::-webkit-scrollbar-thumb:hover {
+body:not(.is-mac) ::-webkit-scrollbar-thumb:hover {
   background-color: var(--text-3);
 }
 

@@ -116,6 +116,9 @@ impl FailoverSwitchManager {
             if let Err(e) = app.emit("provider-switched", event_data) {
                 log::error!("[Failover] 发射事件失败: {e}");
             }
+
+            // 窗口隐藏时前端 toast 看不见，用系统通知兜底（见 notifications.rs）
+            crate::notifications::notify_failover_switch(app, &app_enum, provider_name);
         }
 
         Ok(switched)

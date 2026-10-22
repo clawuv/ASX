@@ -272,8 +272,8 @@ export function UsageDateRangePicker({
           isEndLive
             ? "border-border bg-subtle cursor-not-allowed opacity-50"
             : isActive
-              ? "border-ring ring-1 ring-ring bg-surface cursor-pointer"
-              : "border-border hover:border-border cursor-pointer",
+              ? "border-ring ring-1 ring-ring bg-surface"
+              : "border-border hover:border-border",
         )}
         onClick={() => {
           if (!isEndLive) setActiveField(field);
@@ -380,7 +380,7 @@ export function UsageDateRangePicker({
             {renderField("start")}
             {renderField("end")}
 
-            <label className="flex items-center gap-2 cursor-pointer select-none">
+            <label className="flex items-center gap-2 select-none">
               <Checkbox
                 checked={draftLiveEnd}
                 onCheckedChange={(checked) => {

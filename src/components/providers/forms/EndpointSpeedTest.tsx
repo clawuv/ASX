@@ -573,7 +573,7 @@ const EndpointSpeedTest: React.FC<EndpointSpeedTestProps> = ({
                 <div
                   key={entry.id}
                   onClick={() => handleSelect(entry.url)}
-                  className={`group flex cursor-pointer items-center justify-between px-3 py-2.5 rounded-lg border transition text-fg-1 ${
+                  className={`group flex items-center justify-between px-3 py-2.5 rounded-lg border transition text-fg-1 ${
                     isSelected
                       ? "border-primary/70 bg-primary/5 shadow-sm"
                       : "border-border bg-surface hover:bg-subtle"

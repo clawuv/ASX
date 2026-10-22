@@ -249,7 +249,7 @@ export function ModelsDevPickerDialog({
                         role="button"
                         aria-pressed={selected?.key === entry.key}
                         onClick={() => toggleEntry(entry)}
-                        className={`flex cursor-pointer items-center gap-3 px-3 py-2 ${
+                        className={`flex items-center gap-3 px-3 py-2 ${
                           selected?.key === entry.key
                             ? "bg-selected"
                             : "hover:bg-subtle"

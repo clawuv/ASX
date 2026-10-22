@@ -43,7 +43,7 @@ pub const TRAY_APPS: [AppType; 5] = [
 ];
 
 /// 应用全称（产品名，不翻译）。用全称是为了把 Claude Code 和 Claude Desktop 分开。
-fn app_display_name(app: &AppType) -> &'static str {
+pub(crate) fn app_display_name(app: &AppType) -> &'static str {
     match app {
         AppType::Claude => "Claude Code",
         AppType::ClaudeDesktop => "Claude Desktop",
@@ -512,7 +512,7 @@ fn fill_label(template: &str, label: &str, extra: &[(&str, &str)]) -> String {
     fill(template, &values)
 }
 
-fn truncate_chars(text: &str, max: usize) -> String {
+pub(crate) fn truncate_chars(text: &str, max: usize) -> String {
     let text = text.trim();
     if text.chars().count() <= max {
         return text.to_string();

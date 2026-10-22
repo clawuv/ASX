@@ -59,7 +59,7 @@ const PromptListItem: React.FC<PromptListItemProps> = ({
         onEdit(id);
       }}
       className={cn(
-        "flex h-[60px] cursor-pointer items-center gap-3 pe-2 ps-4 transition-colors duration-150 hover:bg-subtle",
+        "flex h-[60px] items-center gap-3 pe-2 ps-4 transition-colors duration-150 hover:bg-subtle",
         !first && "border-t border-border",
         active && "bg-subtle",
       )}

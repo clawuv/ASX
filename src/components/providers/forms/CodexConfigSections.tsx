@@ -254,7 +254,7 @@ export const CodexConfigSection: React.FC<CodexConfigSectionProps> = ({
         <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
           {showRemoteCompaction && (
             <label
-              className="inline-flex cursor-pointer items-center gap-2 text-sm text-fg-2"
+              className="inline-flex items-center gap-2 text-sm text-fg-2"
               title={t("codexConfig.remoteCompactionHint")}
             >
               <input
@@ -277,7 +277,7 @@ export const CodexConfigSection: React.FC<CodexConfigSectionProps> = ({
       </p>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <label className="inline-flex items-center gap-2 text-sm text-fg-2 cursor-pointer">
+        <label className="inline-flex items-center gap-2 text-sm text-fg-2">
           <input
             type="checkbox"
             checked={toggleStates.contextWindow1M}

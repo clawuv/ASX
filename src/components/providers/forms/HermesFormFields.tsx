@@ -448,7 +448,7 @@ export function HermesFormFields({
                       <div className="flex h-9 items-center gap-2.5 self-end">
                         <Label
                           htmlFor={`hermes-model-vision-${modelKey}`}
-                          className="cursor-pointer text-xs font-normal text-fg-2"
+                          className="text-xs font-normal text-fg-2"
                         >
                           {t("hermes.form.supportsVision", {
                             defaultValue: "支持图片输入",

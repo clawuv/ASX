@@ -840,7 +840,7 @@ const UnifiedMcpPanel: React.FC<UnifiedMcpPanelProps> = ({
                             key={id}
                             onClick={() => openEdit(id)}
                             className={cn(
-                              "flex h-14 cursor-pointer items-center pe-2 ps-4 transition-colors duration-150 hover:bg-subtle",
+                              "flex h-14 items-center pe-2 ps-4 transition-colors duration-150 hover:bg-subtle",
                               index > 0 && "border-t border-border",
                             )}
                           >

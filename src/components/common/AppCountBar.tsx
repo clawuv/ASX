@@ -90,7 +90,7 @@ export const AppCountBar: React.FC<AppCountBarProps> = ({
                   className={cn(
                     badgeVariants({ variant: "secondary" }),
                     APP_ICON_MAP[app].badgeClass,
-                    "shrink-0 cursor-pointer select-none whitespace-nowrap focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed",
+                    "shrink-0 select-none whitespace-nowrap focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed",
                     pending && "cursor-wait disabled:cursor-wait",
                   )}
                 >

@@ -147,7 +147,7 @@ export function ModeTabs({
 
       {failover && (
         <HoverTip content={t("mode.failover")}>
-          <label className="flex shrink-0 cursor-pointer items-center gap-1.5">
+          <label className="flex shrink-0 items-center gap-1.5">
             <Shuffle
               className="h-4 w-4 text-fg-2"
               strokeWidth={1.5}

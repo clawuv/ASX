@@ -457,7 +457,7 @@ export function ProviderCard({
               className={cn(
                 "mt-0.5 inline-flex max-w-full items-center overflow-hidden text-start text-caption text-fg-2",
                 isClickableUrl
-                  ? "cursor-pointer decoration-border-strong underline-offset-[3px] hover:underline"
+                  ? "decoration-border-strong underline-offset-[3px] hover:underline"
                   : "cursor-default",
               )}
               title={displayUrl}

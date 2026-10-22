@@ -72,12 +72,15 @@ export function ConfirmDialog({
             <IconComponent className={iconClass} />
             {title}
           </DialogTitle>
-          <DialogDescription className="whitespace-pre-line text-sm leading-relaxed">
+          <DialogDescription
+            className="whitespace-pre-line text-sm leading-relaxed"
+            data-selectable
+          >
             {message}
           </DialogDescription>
         </DialogHeader>
         {checkboxLabel ? (
-          <label className="flex cursor-pointer select-none items-start gap-2 px-6 pt-3">
+          <label className="flex select-none items-start gap-2 px-6 pt-3">
             <Checkbox
               checked={checkboxChecked}
               disabled={pending}

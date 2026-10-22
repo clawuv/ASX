@@ -1732,7 +1732,7 @@ export function PiProviderForm({
                               <div className="flex items-center gap-2.5">
                                 <Label
                                   htmlFor={`pi-model-reasoning-${model.key}`}
-                                  className="cursor-pointer"
+                                  className=""
                                 >
                                   {t("pi.form.reasoning")}
                                 </Label>
@@ -1750,7 +1750,7 @@ export function PiProviderForm({
                               <div className="flex items-center gap-2.5">
                                 <Label
                                   htmlFor={`pi-model-image-input-${model.key}`}
-                                  className="cursor-pointer"
+                                  className=""
                                 >
                                   {t("pi.form.imageInput")}
                                 </Label>
@@ -1975,7 +1975,7 @@ export function PiProviderForm({
                                                   `pi.form.thinkingLevels.${level}`,
                                                 )}
                                               </p>
-                                              <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+                                              <label className="flex items-center gap-2.5 text-sm">
                                                 <input
                                                   type="radio"
                                                   name={`pi-thinking-level-mode-${model.key}-${level}`}
@@ -2013,7 +2013,7 @@ export function PiProviderForm({
                                                 />
                                                 <label
                                                   htmlFor={`pi-thinking-level-value-${model.key}-${level}`}
-                                                  className="shrink-0 cursor-pointer"
+                                                  className="shrink-0"
                                                 >
                                                   {t(
                                                     "pi.form.thinkingLevelMapTo",
@@ -2055,7 +2055,7 @@ export function PiProviderForm({
                                                   className="h-8 min-w-0 flex-1 font-mono text-xs"
                                                 />
                                               </div>
-                                              <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+                                              <label className="flex items-center gap-2.5 text-sm">
                                                 <input
                                                   type="radio"
                                                   name={`pi-thinking-level-mode-${model.key}-${level}`}

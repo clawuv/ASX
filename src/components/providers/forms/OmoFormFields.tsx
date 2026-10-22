@@ -167,7 +167,7 @@ function ModelCombobox({
           <span className="flex items-center shrink-0 ml-1 gap-0.5">
             {value && (
               <X
-                className="h-3.5 w-3.5 opacity-50 hover:opacity-100 cursor-pointer"
+                className="h-3.5 w-3.5 opacity-50 hover:opacity-100"
                 onClick={(e) => {
                   e.stopPropagation();
                   onChange("");
@@ -1096,7 +1096,7 @@ export function OmoFormFields({
         ) : (
           <ChevronRight className="h-4 w-4 text-fg-2" />
         )}
-        <Label className="text-sm font-semibold cursor-pointer">{title}</Label>
+        <Label className="text-sm font-semibold">{title}</Label>
         {typeof badge === "string" ? (
           <Badge variant="outline" className="text-badge h-5">
             {badge}

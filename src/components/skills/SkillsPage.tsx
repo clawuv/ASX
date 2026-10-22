@@ -581,7 +581,7 @@ export function SkillsPage({
               onToggle={setRepoEnabled}
               onManage={onOpenRepoManager}
             />
-            <label className="flex h-7 shrink-0 cursor-pointer items-center gap-2 rounded-control px-2 text-body text-fg-2 transition-colors hover:bg-subtle hover:text-fg-1">
+            <label className="flex h-7 shrink-0 items-center gap-2 rounded-control px-2 text-body text-fg-2 transition-colors hover:bg-subtle hover:text-fg-1">
               <input
                 type="checkbox"
                 className={CHECKBOX_CLASS}
@@ -891,7 +891,7 @@ function InstallToPopover({
               return (
                 <label
                   key={app}
-                  className="flex h-6 cursor-pointer items-center gap-2 text-body"
+                  className="flex h-6 items-center gap-2 text-body"
                 >
                   <input
                     type="checkbox"
@@ -974,7 +974,7 @@ function RepoPopover({
               return (
                 <label
                   key={id}
-                  className="flex min-h-8 cursor-pointer items-center gap-2 rounded-control px-2 py-1 transition-colors hover:bg-subtle"
+                  className="flex min-h-8 items-center gap-2 rounded-control px-2 py-1 transition-colors hover:bg-subtle"
                 >
                   <input
                     type="checkbox"

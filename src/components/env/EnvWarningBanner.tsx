@@ -172,7 +172,7 @@ export function EnvWarningBanner({
                     />
                     <label
                       htmlFor="select-all"
-                      className="text-sm font-medium text-warning-text cursor-pointer"
+                      className="text-sm font-medium text-warning-text"
                     >
                       {t("env.actions.selectAll")}
                     </label>
@@ -195,7 +195,7 @@ export function EnvWarningBanner({
                           <div className="flex-1 min-w-0">
                             <label
                               htmlFor={key}
-                              className="block text-sm font-medium text-fg-1 cursor-pointer"
+                              className="block text-sm font-medium text-fg-1"
                             >
                               {conflict.varName}
                             </label>

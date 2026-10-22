@@ -87,7 +87,7 @@ const WorkspaceFilesPanel: React.FC = () => {
     <div className="px-6 pt-4 pb-8">
       <HoverTip content={t("workspace.openDirectory")}>
         <p
-          className="text-sm text-fg-2 mb-6 cursor-pointer hover:text-fg-1 transition-colors inline-flex items-center gap-1"
+          className="text-sm text-fg-2 mb-6 hover:text-fg-1 transition-colors inline-flex items-center gap-1"
           onClick={() => workspaceApi.openDirectory("workspace")}
         >
           ~/.openclaw/workspace/

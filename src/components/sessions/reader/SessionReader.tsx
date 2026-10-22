@@ -695,6 +695,7 @@ export function SessionReader({
       >
         <div
           className="relative w-full"
+          data-selectable
           style={{ height: virtualizer.getTotalSize() }}
         >
           {virtualizer.getVirtualItems().map((item) => {

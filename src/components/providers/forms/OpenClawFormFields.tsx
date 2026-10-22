@@ -435,7 +435,7 @@ export function OpenClawFormFields({
                         <div className="flex items-center gap-2.5">
                           <FormLabel
                             htmlFor={`openclaw-model-reasoning-${modelKey}`}
-                            className="cursor-pointer"
+                            className=""
                           >
                             {t("openclaw.reasoning", {
                               defaultValue: "支持扩展思考",
@@ -458,7 +458,7 @@ export function OpenClawFormFields({
                           {(["text", "image"] as const).map((type) => (
                             <label
                               key={type}
-                              className="flex cursor-pointer select-none items-center gap-1.5"
+                              className="flex select-none items-center gap-1.5"
                             >
                               <Checkbox
                                 checked={(model.input ?? ["text"]).includes(

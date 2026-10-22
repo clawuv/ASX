@@ -588,7 +588,7 @@ function SplitQuotaColumn({
                   key={key}
                   aria-hidden
                   title={title}
-                  className="min-w-0 cursor-pointer truncate"
+                  className="min-w-0 truncate"
                   onClick={refreshProps.onClick}
                   onMouseEnter={refreshProps.onMouseEnter}
                   onMouseLeave={refreshProps.onMouseLeave}

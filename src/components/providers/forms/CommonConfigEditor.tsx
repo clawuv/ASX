@@ -216,7 +216,7 @@ export function CommonConfigEditor({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {QUICK_TOGGLES.map((key) => (
           <span key={key} className="inline-flex items-center gap-1">
-            <label className="inline-flex items-center gap-2 text-sm text-fg-2 cursor-pointer">
+            <label className="inline-flex items-center gap-2 text-sm text-fg-2">
               <input
                 type="checkbox"
                 checked={toggleStates[key]}

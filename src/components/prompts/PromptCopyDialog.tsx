@@ -113,7 +113,7 @@ export function PromptCopyDialog({
                 >
                   <label
                     htmlFor={inputId}
-                    className="flex h-10 min-w-0 flex-1 cursor-pointer items-center gap-2.5"
+                    className="flex h-10 min-w-0 flex-1 items-center gap-2.5"
                   >
                     <input
                       id={inputId}

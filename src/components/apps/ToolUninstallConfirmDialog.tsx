@@ -108,7 +108,7 @@ export function ToolUninstallConfirmDialog({
                 {candidates.map((candidate) => (
                   <label
                     key={candidate.path}
-                    className="flex cursor-pointer items-start gap-2.5 rounded-control border border-border p-2.5 has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed"
+                    className="flex items-start gap-2.5 rounded-control border border-border p-2.5 has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 has-[:disabled]:cursor-not-allowed"
                   >
                     <input
                       type="radio"

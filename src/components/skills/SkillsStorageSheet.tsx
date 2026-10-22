@@ -53,7 +53,7 @@ const SYNC_METHODS: {
 
 const LEGEND_CLASS = "mb-2 p-0 text-body font-semibold text-fg-1";
 const RADIO_LABEL_CLASS =
-  "flex cursor-pointer items-center gap-2.5 text-body text-fg-1 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60";
+  "flex items-center gap-2.5 text-body text-fg-1 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60";
 
 /** Skills 页 ⋯ →「存储与同步」对话框：主副本放在哪、怎么同步到各应用（原来在设置 → 通用）。 */
 export function SkillsStorageSheet({

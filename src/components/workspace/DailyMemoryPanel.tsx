@@ -359,7 +359,7 @@ const DailyMemoryPanel: React.FC<DailyMemoryPanelProps> = ({
           <div className="flex items-center justify-between gap-2">
             <HoverTip content={t("workspace.openDirectory")}>
               <p
-                className="text-sm text-fg-2 shrink-0 cursor-pointer hover:text-fg-1 transition-colors inline-flex items-center gap-1"
+                className="text-sm text-fg-2 shrink-0 hover:text-fg-1 transition-colors inline-flex items-center gap-1"
                 onClick={() => workspaceApi.openDirectory("memory")}
               >
                 ~/.openclaw/workspace/memory/
