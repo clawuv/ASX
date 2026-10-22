@@ -102,7 +102,6 @@ export function PromptPageFrame({
                   <Button
                     variant="quiet"
                     size="icon-compact"
-                    className="h-8 w-8"
                     aria-label={t("prompts.moreActions")}
                   >
                     <MoreHorizontal className="h-4 w-4" />

@@ -4064,7 +4064,8 @@
     "group": {
       "workspace": "Çalışma alanı",
       "resources": "Kaynaklar",
-      "activity": "Etkinlik ve durum"
+      "activity": "Etkinlik ve durum",
+      "manage": "Yönetim"
     }
   },
   "appsPage": {

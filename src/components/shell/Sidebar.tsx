@@ -67,7 +67,7 @@ type DirectoryProps = SidebarProps & { collapsed: boolean };
 
 /**
  * 主导航（v7）：顶条 44 → 智能体入口 → 应用 → 全局页（贴底）→ 底栏「设置」。
- * 进入设置后整条侧栏换成设置目录。收起时是 72px 的图标轨；
+ * 进入设置后整条侧栏换成设置目录。收起时是 56px 的图标轨；
  * 展开 / 收起时宽度一步到位，边缘的滑动由盖板的 transform 动画画出（见 useSidebarCollapsed），文字不换行、被裁掉而不是挤成两行。
  * 收起时各行只剩图标，名字由 HoverTip 从右侧报；展开时文字可见，不再挂提示。
  */
@@ -89,7 +89,8 @@ export function Sidebar(props: SidebarProps) {
         "relative flex h-full shrink-0 flex-col whitespace-nowrap text-body text-fg-1",
         collapseToOverlay
           ? "sidebar-overlay-collapsed overflow-visible bg-transparent"
-          : "overflow-hidden border-e border-border bg-sidebar",
+          // 菜单区深色下透出根节点的窗框渐变（.app-frame-gradient），浅色用侧栏底色
+          : "sidebar-gradient overflow-hidden bg-sidebar dark:bg-transparent",
       )}
       style={{ width: sidebarWidth(collapsed) }}
     >
@@ -167,16 +168,19 @@ function SidebarTopBar({
   return (
     <div
       className={cn(
+        // 顶条贴住窗口顶（与卡片 mt-0 一致），页头标题保持水平对齐
         "flex h-[52px] shrink-0 items-center gap-0.5 px-2",
-        collapsed ? "justify-center" : "justify-end",
+        collapsed && "justify-center",
       )}
       {...DRAG_REGION_ATTR}
       style={DRAG_REGION_STYLE as React.CSSProperties}
     >
       {!collapsed && !isMac() && (
-        // 左上角品牌（Windows / Linux）：图标 + 名字。macOS 左上角留给红绿灯，不放。
-        // 图片不接收指针事件，拖它也是在拖窗口
-        <span className="pointer-events-none me-auto flex min-w-0 items-center gap-2 ps-1.5">
+        // 左上角品牌（Windows / Linux）：图标 + 名字；me-auto 把收起按钮推到顶条最右端——
+        // 一行从左排开，与参考稿的顶栏一致。macOS 左上角留给红绿灯，不放。
+        // 图片不接收指针事件，拖它也是在拖窗口。
+        // ps-2 与下方菜单项图标（mx-2 + px-2 = 16px）同一条左对齐线
+        <span className="pointer-events-none me-auto flex min-w-0 items-center gap-2 ps-2">
           <img
             src={ccswitchLogo}
             alt=""
@@ -260,109 +264,93 @@ function MainDirectory({
     title?: string;
   };
 
-  // 展开时用小标题把「入口 / 资源 / 状态」分开；收起时只保留组间距，避免图标轨太碎
-  const navGroups: { label: string; items: MainNavItem[] }[] = [
+  // 上四项平铺；提示词/会话/授权/用量单独成组（展开时带小标题）
+  const navItems: MainNavItem[] = [
     {
-      label: t("nav.group.workspace"),
-      items: [
-        {
-          page: "agents",
-          label: t("nav.agents"),
-          icon: Bot,
-          alert: agentsNeedAttention ? t("nav.agentsNeedAttention") : undefined,
-        },
-        {
-          page: "apps",
-          label: t("nav.apps"),
-          icon: LayoutGrid,
-          title: appsUpdateAvailable
-            ? t("nav.appsHasUpdate")
-            : t("nav.appsTitle"),
-        },
-      ],
+      page: "agents",
+      label: t("nav.agents"),
+      icon: Bot,
+      alert: agentsNeedAttention ? t("nav.agentsNeedAttention") : undefined,
     },
     {
-      label: t("nav.group.resources"),
-      items: [
-        { page: "mcp", label: "MCP", icon: Server },
-        { page: "skills", label: "Skills", icon: SkillsIcon },
-        { page: "prompts", label: t("nav.prompts"), icon: BookOpen },
-      ],
+      page: "apps",
+      label: t("nav.apps"),
+      icon: LayoutGrid,
+      title: appsUpdateAvailable ? t("nav.appsHasUpdate") : t("nav.appsTitle"),
     },
-    {
-      label: t("nav.group.activity"),
-      items: [
-        { page: "sessions", label: t("nav.sessions"), icon: History },
-        {
-          page: "auth",
-          label: t("nav.auth"),
-          icon: KeyRound,
-          alert: authNeedsAttention ? t("nav.authNeedsReauth") : undefined,
-        },
-        {
-          page: "usage",
-          label: t("nav.usage"),
-          icon: ChartColumn,
-          trailing: todayTrailing,
-          trailingLabel: todayText,
-        },
-      ],
-    },
+    { page: "mcp", label: "MCP", icon: Server },
+    { page: "skills", label: "Skills", icon: SkillsIcon },
   ];
+  const navGroup: { label: string; items: MainNavItem[] } = {
+    label: t("nav.group.manage"),
+    items: [
+      { page: "prompts", label: t("nav.prompts"), icon: BookOpen },
+      { page: "sessions", label: t("nav.sessions"), icon: History },
+      {
+        page: "auth",
+        label: t("nav.auth"),
+        icon: KeyRound,
+        alert: authNeedsAttention ? t("nav.authNeedsReauth") : undefined,
+      },
+      {
+        page: "usage",
+        label: t("nav.usage"),
+        icon: ChartColumn,
+        trailing: todayTrailing,
+        trailingLabel: todayText,
+      },
+    ],
+  };
+
+  const renderItem = (item: MainNavItem) => (
+    <NavItem
+      key={item.page}
+      collapsed={collapsed}
+      selected={
+        item.page === "agents"
+          ? view === "agents" || isAppPage(view)
+          : isGlobalSelected(item.page)
+      }
+      icon={item.icon}
+      label={item.label}
+      title={item.title}
+      dot={item.page === "apps" && appsUpdateAvailable}
+      trailing={item.trailing}
+      trailingLabel={item.trailingLabel}
+      alert={item.alert}
+      onClick={() => onSelectPage(item.page)}
+    />
+  );
 
   const isGlobalSelected = (page: GlobalPage) =>
     view === page || (page === "skills" && view === "skillsDiscovery");
 
   return (
     <>
-      {/* 所有主导航保持同一行高；小标题只负责功能分组，不改变行样式 */}
+      {/* 上四项平铺；下方四项成一组，展开时带小标题 */}
       <div
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-y-1 overflow-y-auto overflow-x-hidden pb-2 pt-0.5",
-          // 图标轨只有 72 宽，放不下滚动条
+          // 图标轨只有 56 宽，放不下滚动条
           collapsed && "no-scrollbar",
         )}
       >
-        {navGroups.map((group, groupIndex) => (
+        {navItems.map(renderItem)}
+        {!collapsed && (
           <div
-            key={group.label}
-            role="group"
-            aria-label={group.label}
-            className={cn(
-              "flex flex-col gap-y-1",
-              collapsed ? "mt-2 first:mt-0" : "mt-3 first:mt-0",
-              collapsed && groupIndex > 0 && "pt-2",
-            )}
+            aria-hidden="true"
+            className="mt-3 px-4 pb-1 text-badge text-fg-3"
           >
-            {!collapsed && (
-              <div
-                aria-hidden="true"
-                className="px-4 pb-1 text-badge text-fg-3"
-              >
-                {group.label}
-              </div>
-            )}
-            {group.items.map((item) => (
-              <NavItem
-                key={item.page}
-                collapsed={collapsed}
-                selected={
-                  item.page === "agents"
-                    ? view === "agents" || isAppPage(view)
-                    : isGlobalSelected(item.page)
-                }
-                icon={item.icon}
-                label={item.label}
-                title={item.title}
-                dot={item.page === "apps" && appsUpdateAvailable}
-                trailing={item.trailing}
-                trailingLabel={item.trailingLabel}
-                alert={item.alert}
-                onClick={() => onSelectPage(item.page)}
-              />
-            ))}
+            {navGroup.label}
           </div>
-        ))}
+        )}
+        <div
+          role="group"
+          aria-label={navGroup.label}
+          className={cn("flex flex-col gap-y-1", collapsed && "mt-2 pt-2")}
+        >
+          {navGroup.items.map(renderItem)}
+        </div>
       </div>
 
       {/* 底部固定项前保留分隔线，和目录区明确分开 */}
@@ -497,7 +485,7 @@ function NavItem({
           aria-label={title ?? accessibleName}
           aria-current={selected ? "page" : undefined}
           className={cn(
-            "mx-auto flex h-8 w-12 shrink-0 items-center justify-center rounded-control transition-colors hover:bg-sidebar-hover",
+            "mx-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-control transition-colors hover:bg-sidebar-hover",
             selected && "bg-selected hover:bg-selected",
           )}
         >
@@ -527,7 +515,7 @@ function NavItem({
         aria-label={trailingLabel ? accessibleName : undefined}
         aria-current={selected ? "page" : undefined}
         className={cn(
-          "flex h-7 shrink-0 items-center gap-2 rounded-control px-2 text-start transition-colors hover:bg-sidebar-hover",
+          "flex h-8 shrink-0 items-center gap-2 rounded-control px-2 text-start transition-colors hover:bg-sidebar-hover",
           compact ? "min-w-0 flex-1" : "mx-2 w-[184px]",
           selected && "bg-selected font-medium hover:bg-selected",
         )}
@@ -537,7 +525,7 @@ function NavItem({
           <span className="min-w-0 flex-1 truncate">{label}</span>
         ) : (
           <>
-            {/* 有行尾小字时名字不让：放不下就让小字折行（两行正好塞进 28px 的行高） */}
+            {/* 有行尾小字时名字不让：放不下就让小字折行（两行正好塞进 32px 的行高） */}
             <span className="shrink-0 grow">{label}</span>
             <span className="min-w-0 text-end text-caption leading-[13px] tabular-nums text-fg-3">
               {trailingLines.map((line) => (
@@ -605,7 +593,7 @@ function SettingsDirectory({
       <div
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-y-1 overflow-y-auto overflow-x-hidden pb-2 pt-0.5",
-          // 图标轨只有 72 宽，放不下滚动条
+          // 图标轨只有 56 宽，放不下滚动条
           collapsed && "no-scrollbar",
         )}
       >

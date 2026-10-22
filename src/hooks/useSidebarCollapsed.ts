@@ -15,7 +15,7 @@ const STORAGE_KEY = "cc-switch-sidebar-collapsed";
 
 export const SIDEBAR_EXPANDED_WIDTH = 200;
 /** 收起时的图标轨宽度：macOS 完全让位给内容区，收起按钮悬浮在原位置 */
-export const sidebarRailWidth = () => (isMac() ? 108 : 72);
+export const sidebarRailWidth = () => (isMac() ? 108 : 56);
 
 const TOGGLE_DURATION_MS = 200;
 const TOGGLE_EASING = "cubic-bezier(0.2, 0, 0, 1)";

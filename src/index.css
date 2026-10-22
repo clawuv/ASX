@@ -40,6 +40,36 @@ textarea,
   user-select: text;
 }
 
+/* 深色框架渐变：按参考稿逐点采样——窗框 #37383b→#232425（上亮下暗），
+   内容画布 #1a1b1b→#131414（整体沉下去）。叠在纯色兜底之上，浅色模式不套用。 */
+html.dark .app-frame-gradient {
+  background-image: linear-gradient(
+    180deg,
+    #37383b 0%,
+    #2e2f31 45%,
+    #232425 100%
+  );
+}
+
+html.dark .app-canvas-gradient {
+  background-image: linear-gradient(
+    180deg,
+    #1a1b1b 0%,
+    #151516 55%,
+    #131414 100%
+  );
+}
+
+/* 浅色侧栏渐变：与深色窗框渐变同构（上亮下暗），叠在 --bg-sidebar 纯色兜底之上 */
+html:not(.dark) .sidebar-gradient {
+  background-image: linear-gradient(
+    180deg,
+    #f8f8fa 0%,
+    #f1f1f4 50%,
+    #e9e9ed 100%
+  );
+}
+
 @layer base {
   /* shadcn 组件用的 HSL token（可以带 /50 这类透明度），取值对齐 v7 设计稿的 tokens.css */
   :root {
@@ -108,7 +138,11 @@ textarea,
      --action-text：橙色当文字用（链接）时用深一档，保证对比度。 */
   :root {
     --bg-app: #ffffff;
-    --bg-sidebar: #f5f5f7;
+    /* 侧栏比窗框（--bg-app 白）深一档，让内容区白底上的圆角画布「浮」出来；
+       同为 240 冷灰族，与 --bg-subtle / --border 保持同族过渡 */
+    --bg-sidebar: #f2f2f4;
+    /* 内容卡片画布：与窗框同白，卡片靠描边和阴影浮出 */
+    --bg-content: #ffffff;
     --bg-sidebar-hover: #e9e9ee;
     --bg-subtle: #efeff2;
     --bg-selected: #e4e4ea;
@@ -188,12 +222,19 @@ textarea,
   }
 
   .dark {
-    --bg-app: #1c1c1e;
+    /* 窗框/菜单区：参考稿深色侧栏（渐变的纯色兜底，渐变见 .app-frame-gradient） */
+    --bg-app: #1a1a1c;
     --bg-sidebar: #161618;
-    --bg-sidebar-hover: #2b2b30;
+    /* 深色下内容卡片透明（App.tsx dark:bg-transparent），与窗框渐变同底；
+       此 token 仅浅色模式生效 */
+    --bg-content: #161617;
+    /* 深色下悬停/选中改半透明白：窗框是渐变底（见 .app-frame-gradient），
+       不透明色在渐变上部会「越悬停越暗」，半透明在任何底上都成立 */
+    --bg-sidebar-hover: rgba(255, 255, 255, 0.06);
     --bg-subtle: #26262a;
-    --bg-selected: #313136;
-    --bg-card: #2e2e33;
+    --bg-selected: rgba(255, 255, 255, 0.1);
+    /* 卡片与左侧菜单/窗框同色（用户要求深色下保持一致） */
+    --bg-card: #1a1a1c;
     --border-strong: #4a4a52;
     /* 三档文字都比纯白压低一截并拉开明度差：太亮时三档都贴近白色，整屏显得刺眼、层次压平。
        次级、三级对卡片底、选中底（--bg-card / --bg-selected）都 ≥ 4.5:1 */

@@ -213,62 +213,65 @@ export function AppsPage() {
               {lastChecked}
             </span>
             {(updatableCount > 0 || tools.batchAction) && (
-              <Button
-                variant="neutral"
-                size="regular"
-                disabled={tools.isLoadingTools || Boolean(tools.batchAction)}
-                aria-busy={Boolean(tools.batchAction)}
-                onClick={() =>
-                  void tools.handleRunToolAction(
-                    tools.updatableToolNames,
-                    "update",
-                    { fromBatchEntry: true },
-                  )
-                }
+              <HoverTip
+                content={t("settings.updateAllTools", { count: updatableCount })}
               >
-                {tools.batchAction === "update" ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ArrowUpCircle className="h-3.5 w-3.5" />
-                )}
-                {t("settings.updateAllTools", { count: updatableCount })}
-              </Button>
+                <Button
+                  variant="quiet"
+                  size="icon-compact"
+                  disabled={tools.isLoadingTools || Boolean(tools.batchAction)}
+                  aria-busy={Boolean(tools.batchAction)}
+                  aria-label={t("settings.updateAllTools", {
+                    count: updatableCount,
+                  })}
+                  onClick={() =>
+                    void tools.handleRunToolAction(
+                      tools.updatableToolNames,
+                      "update",
+                      { fromBatchEntry: true },
+                    )
+                  }
+                >
+                  {tools.batchAction === "update" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ArrowUpCircle className="h-4 w-4" />
+                  )}
+                </Button>
+              </HoverTip>
             )}
-            <Button
-              variant="neutral"
-              size="regular"
-              disabled={tools.isLoadingTools || tools.isAnyBusy}
-              onClick={() => void tools.checkForUpdates()}
+            <HoverTip
+              content={
+                tools.isLoadingTools
+                  ? t("appsPage.checking")
+                  : t("appsPage.checkUpdates")
+              }
             >
-              <RefreshCw
-                className={cn(
-                  "h-3.5 w-3.5",
-                  tools.isLoadingTools && "animate-spin",
-                )}
-              />
-              {/* 两种文案叠在同一格，按钮按较宽的那个定宽，切换时不改变宽度 */}
-              <span className="grid justify-items-center [&>*]:col-start-1 [&>*]:row-start-1">
-                <span
-                  aria-hidden={tools.isLoadingTools}
-                  className={cn(tools.isLoadingTools && "invisible")}
-                >
-                  {t("appsPage.checkUpdates")}
-                </span>
-                <span
-                  aria-hidden={!tools.isLoadingTools}
-                  className={cn(!tools.isLoadingTools && "invisible")}
-                >
-                  {t("appsPage.checking")}
-                </span>
-              </span>
-            </Button>
+              <Button
+                variant="quiet"
+                size="icon-compact"
+                disabled={tools.isLoadingTools || tools.isAnyBusy}
+                aria-label={
+                  tools.isLoadingTools
+                    ? t("appsPage.checking")
+                    : t("appsPage.checkUpdates")
+                }
+                onClick={() => void tools.checkForUpdates()}
+              >
+                <RefreshCw
+                  className={cn(
+                    "h-4 w-4",
+                    tools.isLoadingTools && "animate-spin",
+                  )}
+                />
+              </Button>
+            </HoverTip>
             <DropdownMenu>
               <HoverTip content={t("common.more")}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="quiet"
                     size="icon-compact"
-                    className="h-8 w-8"
                     aria-label={t("appsPage.moreActions")}
                   >
                     <MoreHorizontal className="h-4 w-4" />

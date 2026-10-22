@@ -42,6 +42,7 @@ module.exports = {
         ring: "hsl(var(--ring))",
         // v7 设计 token（见 src/index.css）。纯 var() 颜色不支持 /50 这类透明度修饰。
         app: "var(--bg-app)",
+        content: "var(--bg-content)",
         sidebar: {
           DEFAULT: "var(--bg-sidebar)",
           hover: "var(--bg-sidebar-hover)",

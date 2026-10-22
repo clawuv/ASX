@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "@/lib/toast";
 import { invoke } from "@tauri-apps/api/core";
 import { useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, MoreHorizontal, Plus, Search } from "lucide-react";
+import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Provider, VisibleApps } from "@/types";
 import { KNOWN_APP_TYPES, type AppTypeFilter } from "@/types/usage";
@@ -48,7 +48,7 @@ import {
 } from "@/utils/errorUtils";
 import { isTextEditableTarget } from "@/utils/domUtils";
 import { deepClone } from "@/utils/deepClone";
-import { isLinux, isMac, isWindows } from "@/lib/platform";
+import { isLinux, isWindows, DRAG_REGION_ATTR } from "@/lib/platform";
 import {
   APP_STORAGE_KEY,
   appPageBelongsTo,
@@ -164,11 +164,7 @@ function App() {
     PROMPT_APP_IDS.includes(sharedFeatureApp) ? sharedFeatureApp : "claude",
   );
   const [isAddOpen, setIsAddOpen] = useState(false);
-  // 供应商搜索面板：页头按钮和 ⌘F 都能打开；换应用或离开供应商页就收起
-  const [providerSearchOpen, setProviderSearchOpen] = useState(false);
-  useEffect(() => {
-    setProviderSearchOpen(false);
-  }, [activeApp, currentView]);
+  // 供应商搜索框常显：是否显示仍由设置 showProviderSearch 控制（见 searchOpen 传参）
   // 供应商页顶部正在看的那格（直连 / 路由 / 聚合），由 SwitchModePanel 报上来。打开新增、
   // 编辑时记下当时那格，表单按它选布局：在聚合那格打开就是聚合的简化表单。
   const [providerModeView, setProviderModeView] = useState<{
@@ -1159,25 +1155,6 @@ function App() {
               <ExternalLink className="h-3.5 w-3.5" />
             </Button>
           )}
-          {isProviderListActive &&
-            (settingsData?.showProviderSearch ?? true) && (
-              <HoverTip
-                content={t("provider.searchButtonTip", {
-                  shortcut: isMac() ? "⌘F" : "Ctrl+F",
-                })}
-              >
-                <Button
-                  variant="quiet"
-                  size="icon-compact"
-                  className="h-8 w-8"
-                  aria-label={t("provider.searchAriaLabel")}
-                  aria-pressed={providerSearchOpen}
-                  onClick={() => setProviderSearchOpen((open) => !open)}
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-              </HoverTip>
-            )}
           {isProviderListActive && (
             <HoverTip content={t("provider.addProvider")}>
               <Button
@@ -1284,8 +1261,7 @@ function App() {
         ? setTerminalProvider
         : undefined,
     onCreate: () => openAddProvider(currentModeView),
-    searchOpen: providerSearchOpen,
-    onSearchOpenChange: setProviderSearchOpen,
+    searchOpen: settingsData?.showProviderSearch ?? true,
   };
 
   const renderProviderList = () => {
@@ -1537,7 +1513,10 @@ function App() {
     <WindowControlsContext.Provider
       value={useAppWindowControls ? <WindowControls /> : null}
     >
-      <div className="flex h-screen overflow-hidden bg-app text-fg-1 selection:bg-action/25">
+      <div
+        className="app-frame-gradient flex h-screen overflow-hidden bg-app text-fg-1 selection:bg-action/25"
+        {...DRAG_REGION_ATTR}
+      >
         <Sidebar
           activeApp={activeApp}
           view={currentView}
@@ -1557,31 +1536,38 @@ function App() {
         <main
           ref={mainScrollRef}
           id="content-area"
-          className="relative isolate flex min-w-0 flex-1 flex-col overflow-hidden bg-app"
+          className="relative isolate flex min-w-0 flex-1 flex-col overflow-hidden"
         >
+          {/* 可见卡片本体：四边贴满窗口（左侧贴侧栏），页头等内容叠在其上不动 */}
+          <div
+            aria-hidden="true"
+            className="app-canvas-gradient absolute inset-0 bg-content"
+          />
           {showEnvBanner && envConflicts.length > 0 && (
-            <EnvWarningBanner
-              conflicts={envConflicts}
-              onDismiss={() => {
-                setShowEnvBanner(false);
-                sessionStorage.setItem("env_banner_dismissed", "true");
-              }}
-              onDeleted={async () => {
-                try {
-                  const allConflicts = await checkAllEnvConflicts();
-                  const flatConflicts = Object.values(allConflicts).flat();
-                  setEnvConflicts(flatConflicts);
-                  if (flatConflicts.length === 0) {
-                    setShowEnvBanner(false);
+            <div className="relative">
+              <EnvWarningBanner
+                conflicts={envConflicts}
+                onDismiss={() => {
+                  setShowEnvBanner(false);
+                  sessionStorage.setItem("env_banner_dismissed", "true");
+                }}
+                onDeleted={async () => {
+                  try {
+                    const allConflicts = await checkAllEnvConflicts();
+                    const flatConflicts = Object.values(allConflicts).flat();
+                    setEnvConflicts(flatConflicts);
+                    if (flatConflicts.length === 0) {
+                      setShowEnvBanner(false);
+                    }
+                  } catch (error) {
+                    console.error(
+                      "[App] Failed to re-check conflicts after deletion:",
+                      error,
+                    );
                   }
-                } catch (error) {
-                  console.error(
-                    "[App] Failed to re-check conflicts after deletion:",
-                    error,
-                  );
-                }
-              }}
-            />
+                }}
+              />
+            </div>
           )}
           <div
             key={
@@ -1591,7 +1577,7 @@ function App() {
                   ? "app"
                   : currentView
             }
-            className="flex min-h-0 flex-1 flex-col"
+            className="relative flex min-h-0 flex-1 flex-col"
           >
             {renderContent()}
           </div>

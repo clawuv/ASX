@@ -967,7 +967,6 @@ const UnifiedSkillsPanel: React.FC<UnifiedSkillsPanelProps> = ({
                   type="button"
                   variant="quiet"
                   size="icon-compact"
-                  className="h-8 w-8"
                   aria-label={t("skills.moreActions")}
                 >
                   <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} />

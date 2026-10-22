@@ -4162,7 +4162,8 @@
     "group": {
       "workspace": "ワークスペース",
       "resources": "リソース",
-      "activity": "アクティビティと状態"
+      "activity": "アクティビティと状態",
+      "manage": "管理"
     }
   },
   "appsPage": {

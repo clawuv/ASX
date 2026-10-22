@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "@/lib/toast";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Maximize2, Minimize2, Minus, X } from "lucide-react";
+import { Copy, Minus, Square, X } from "lucide-react";
 import { extractErrorMessage } from "@/utils/errorUtils";
 import { cn } from "@/lib/utils";
 import { HoverTip } from "@/components/ui/hover-tip";
@@ -65,7 +65,7 @@ export function WindowControls() {
           aria-label={t("header.windowMinimize")}
           onClick={() => void run(() => getCurrentWindow().minimize())}
         >
-          <Minus className="h-4 w-4" />
+          <Minus className="h-4 w-4" strokeWidth={1.5} />
         </button>
       </HoverTip>
       <HoverTip content={maximizeLabel}>
@@ -81,10 +81,11 @@ export function WindowControls() {
             })
           }
         >
+          {/* 常规系统图标：— □，还原态用重叠双框（Windows 惯例），细描边与参考稿一致 */}
           {maximized ? (
-            <Minimize2 className="h-4 w-4" />
+            <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
           ) : (
-            <Maximize2 className="h-4 w-4" />
+            <Square className="h-3.5 w-3.5" strokeWidth={1.5} />
           )}
         </button>
       </HoverTip>
@@ -95,7 +96,7 @@ export function WindowControls() {
           aria-label={t("header.windowClose")}
           onClick={() => void run(() => getCurrentWindow().close())}
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4" strokeWidth={1.5} />
         </button>
       </HoverTip>
     </>

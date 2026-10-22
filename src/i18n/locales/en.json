@@ -4162,7 +4162,8 @@
     "group": {
       "workspace": "Workspace",
       "resources": "Resources",
-      "activity": "Activity"
+      "activity": "Activity",
+      "manage": "Manage"
     }
   },
   "appsPage": {

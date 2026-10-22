@@ -53,7 +53,8 @@ export function AppPageHeader({
         {...DRAG_REGION_ATTR}
         className={cn(
           "flex min-w-0 items-center gap-2.5",
-          truncateTitle ? "flex-1" : "shrink-0",
+          // 只在空间不够时截断；不固定 grow，长标题不把工具簇挤出屏幕
+          truncateTitle ? "min-w-0 shrink" : "shrink-0",
         )}
       >
         {leading && (
@@ -82,15 +83,22 @@ export function AppPageHeader({
           </div>
         )}
       </div>
-      {!truncateTitle && <div {...DRAG_REGION_ATTR} className="flex-1" />}
       {actions && (
         <div
-          className="flex min-w-0 shrink items-center justify-end gap-2"
+          className="flex min-w-0 shrink items-center justify-start gap-2"
           style={NO_DRAG}
         >
+          {/* 左对齐的工具簇，前面加竖分割线和标题区隔开 */}
+          <span
+            aria-hidden="true"
+            className="h-5 w-px shrink-0 bg-border"
+            {...DRAG_REGION_ATTR}
+          />
           {actions}
         </div>
       )}
+      {/* 窗口按钮始终贴右；截断标题交给 min-w-0 处理，占位空档不再省略 */}
+      <div {...DRAG_REGION_ATTR} className="flex-1" />
       {windowControls && (
         <div className="flex shrink-0 items-center gap-1" style={NO_DRAG}>
           {windowControls}

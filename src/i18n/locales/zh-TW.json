@@ -4163,7 +4163,8 @@
     "group": {
       "workspace": "工作區",
       "resources": "資源",
-      "activity": "活動與狀態"
+      "activity": "活動與狀態",
+      "manage": "管理"
     }
   },
   "appsPage": {
