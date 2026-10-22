@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { AppPageHeader } from "@/components/shell/AppPageHeader";
 import { APP_DISPLAY_NAME, AppGlyph } from "@/components/shell/AppGlyph";
+import { MatrixSearch } from "@/components/mcp/AppMatrix";
 import { HelpTip } from "@/components/ui/help-tip";
 import { ToolUpgradeConfirmDialog } from "@/components/settings/ToolUpgradeConfirmDialog";
 import { ToolInstallRow } from "@/components/settings/ToolInstallRow";
@@ -103,6 +104,12 @@ function formatCheckedAt(timestamp: number, locale: string): string {
     : `${date.toLocaleDateString(locale, { month: "numeric", day: "numeric" })} ${time}`;
 }
 
+function appRowName(row: Row): string {
+  return row.kind === "desktop"
+    ? APP_DISPLAY_NAME["claude-desktop"]
+    : `${toolDisplayName(row.tool)} ${APP_DISPLAY_NAME[TOOL_APP_IDS[row.tool]]}`;
+}
+
 /**
  * 「应用」页（v7）：每个应用一行 = 安装状态 / 版本 + 安装 / 升级 + 在侧栏显示的开关 + 「⋯」菜单（卸载）。
  * 隐藏一个应用只影响界面（侧栏、MCP / Skills 的列、提示词和会话的下拉），配置照常同步。
@@ -112,6 +119,13 @@ export function AppsPage() {
   const tools = useToolManagement();
   const { settings, updateSettings, autoSaveSettings } = useSettings();
   const tableRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredRows = normalizedSearchQuery
+    ? ROWS.filter((row) =>
+        appRowName(row).toLowerCase().includes(normalizedSearchQuery),
+      )
+    : ROWS;
 
   useLayoutEffect(() => {
     const table = tableRef.current;
@@ -214,7 +228,9 @@ export function AppsPage() {
             </span>
             {(updatableCount > 0 || tools.batchAction) && (
               <HoverTip
-                content={t("settings.updateAllTools", { count: updatableCount })}
+                content={t("settings.updateAllTools", {
+                  count: updatableCount,
+                })}
               >
                 <Button
                   variant="quiet"
@@ -309,83 +325,115 @@ export function AppsPage() {
         className="min-h-0 flex-1 overflow-y-auto scroll-stable"
       >
         <div ref={tableRef} className="px-6 pb-10 pt-4">
-          <div
-            className={cn(
-              APP_ROW_GRID,
-              "mx-px h-8 px-4 text-caption font-medium text-fg-2",
-            )}
-          >
-            <span>{t("appsPage.columnApp")}</span>
-            <span className="text-end">{t("appsPage.columnVersion")}</span>
-            {/* 看不见的「安装 / 升级」按钮只用来量宽：操作列始终留出按钮的位置，
-                版本号加载完或检查到新版本、按钮冒出来时，版本列不会被推开。 */}
-            <div
-              data-tool-actions
-              aria-hidden
-              className="invisible grid w-max justify-self-end [&>*]:col-start-1 [&>*]:row-start-1"
-            >
-              <Button variant="neutral" size="compact" tabIndex={-1}>
-                <Download className="h-3.5 w-3.5" />
-                {t("settings.toolInstall")}
-              </Button>
-              <Button variant="neutral" size="compact" tabIndex={-1}>
-                <ArrowUpCircle className="h-3.5 w-3.5" />
-                {t("settings.toolUpdate")}
-              </Button>
-            </div>
-            <span className="flex items-center justify-end gap-0.5">
-              {t("appsPage.columnVisible")}
-              <HelpTip title={t("appsPage.columnVisible")} align="end">
-                {t("appsPage.visibleHelp")}
-              </HelpTip>
+          <div className="flex h-14 items-center gap-3">
+            <MatrixSearch
+              className="w-[320px] min-w-[180px] shrink"
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              placeholder={t("appsPage.searchPlaceholder")}
+              ariaLabel={t("appsPage.searchPlaceholder")}
+              status={
+                normalizedSearchQuery
+                  ? t("appMatrix.found", { count: filteredRows.length })
+                  : ""
+              }
+            />
+            <span className="shrink-0 whitespace-nowrap text-caption tabular-nums text-fg-2">
+              {normalizedSearchQuery
+                ? t("appsPage.countFiltered", {
+                    shown: filteredRows.length,
+                    count: ROWS.length,
+                  })
+                : t("appsPage.count", { count: ROWS.length })}
             </span>
-            <span />
+            <span className="ms-auto min-w-0 truncate text-caption text-fg-2">
+              {t("appsPage.helpBody")}
+            </span>
           </div>
 
-          <div className="divide-y divide-border overflow-hidden rounded-panel border border-border bg-surface">
-            {ROWS.map((row) =>
-              row.kind === "desktop" ? (
-                <AppRow
-                  key="claude-desktop"
-                  app="claude-desktop"
-                  name={
-                    <span className="truncate">
-                      {APP_DISPLAY_NAME["claude-desktop"]}
-                    </span>
-                  }
-                  version={
-                    <span className="inline-flex items-center gap-1 text-caption text-fg-2">
-                      {desktopStatus?.supported === false
-                        ? t("appsPage.desktopUnsupported")
-                        : desktopStatus?.configured
-                          ? t("appsPage.desktopConnected")
-                          : t("appsPage.desktopNotConnected")}
-                      <HelpTip
-                        title={APP_DISPLAY_NAME["claude-desktop"]}
-                        align="end"
-                      >
-                        {t("appsPage.desktopHelp")}
-                      </HelpTip>
-                    </span>
-                  }
-                  visibility={visibilitySwitch("claude-desktop")}
-                />
-              ) : (
-                <ToolRow
-                  key={row.tool}
-                  tool={row.tool}
-                  tools={tools}
-                  onUninstall={() => setPendingUninstall(row.tool)}
-                  expanded={expanded[row.tool] ?? false}
-                  onToggleExpanded={() =>
-                    setExpanded((prev) => ({
-                      ...prev,
-                      [row.tool]: !prev[row.tool],
-                    }))
-                  }
-                  visibility={visibilitySwitch(TOOL_APP_IDS[row.tool])}
-                />
-              ),
+          <div className="divide-y divide-border rounded-panel border border-border bg-surface">
+            <div
+              className={cn(
+                APP_ROW_GRID,
+                "sticky top-0 z-10 h-11 rounded-t-panel bg-subtle pe-4 ps-4 text-caption font-semibold text-fg-2",
+              )}
+            >
+              <span>{t("appsPage.columnApp")}</span>
+              <span className="text-end">{t("appsPage.columnVersion")}</span>
+              {/* 看不见的「安装 / 升级」按钮只用来量宽：操作列始终留出按钮的位置，
+                版本号加载完或检查到新版本、按钮冒出来时，版本列不会被推开。 */}
+              <div
+                data-tool-actions
+                aria-hidden
+                className="invisible grid w-max justify-self-end [&>*]:col-start-1 [&>*]:row-start-1"
+              >
+                <Button variant="neutral" size="compact" tabIndex={-1}>
+                  <Download className="h-3.5 w-3.5" />
+                  {t("settings.toolInstall")}
+                </Button>
+                <Button variant="neutral" size="compact" tabIndex={-1}>
+                  <ArrowUpCircle className="h-3.5 w-3.5" />
+                  {t("settings.toolUpdate")}
+                </Button>
+              </div>
+              <span className="flex items-center justify-end gap-0.5">
+                {t("appsPage.columnVisible")}
+                <HelpTip title={t("appsPage.columnVisible")} align="end">
+                  {t("appsPage.visibleHelp")}
+                </HelpTip>
+              </span>
+              <span />
+            </div>
+
+            {filteredRows.length === 0 ? (
+              <div className="px-6 py-8 text-center text-body text-fg-2">
+                {t("appsPage.noMatch", { query: searchQuery.trim() })}
+              </div>
+            ) : (
+              filteredRows.map((row) =>
+                row.kind === "desktop" ? (
+                  <AppRow
+                    key="claude-desktop"
+                    app="claude-desktop"
+                    name={
+                      <span className="truncate">
+                        {APP_DISPLAY_NAME["claude-desktop"]}
+                      </span>
+                    }
+                    version={
+                      <span className="inline-flex items-center gap-1 text-caption text-fg-2">
+                        {desktopStatus?.supported === false
+                          ? t("appsPage.desktopUnsupported")
+                          : desktopStatus?.configured
+                            ? t("appsPage.desktopConnected")
+                            : t("appsPage.desktopNotConnected")}
+                        <HelpTip
+                          title={APP_DISPLAY_NAME["claude-desktop"]}
+                          align="end"
+                        >
+                          {t("appsPage.desktopHelp")}
+                        </HelpTip>
+                      </span>
+                    }
+                    visibility={visibilitySwitch("claude-desktop")}
+                  />
+                ) : (
+                  <ToolRow
+                    key={row.tool}
+                    tool={row.tool}
+                    tools={tools}
+                    onUninstall={() => setPendingUninstall(row.tool)}
+                    expanded={expanded[row.tool] ?? false}
+                    onToggleExpanded={() =>
+                      setExpanded((prev) => ({
+                        ...prev,
+                        [row.tool]: !prev[row.tool],
+                      }))
+                    }
+                    visibility={visibilitySwitch(TOOL_APP_IDS[row.tool])}
+                  />
+                ),
+              )
             )}
           </div>
         </div>
