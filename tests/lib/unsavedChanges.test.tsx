@@ -84,7 +84,7 @@ describe("unsaved changes tracker", () => {
   it("tracks sheet editor pages", () => {
     render(
       <Sheet open modal={false}>
-        <SheetPageContent title="Edit MCP" closeLabel="back">
+        <SheetPageContent title="Edit MCP">
           <textarea aria-label="body" />
         </SheetPageContent>
       </Sheet>,

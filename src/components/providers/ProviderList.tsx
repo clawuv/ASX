@@ -15,7 +15,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
@@ -284,13 +284,6 @@ export function ProviderList({
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [setIsSearchOpen, isSearchOpen, focusSearch]);
 
-  useEffect(() => {
-    if (isSearchOpen) {
-      const frame = requestAnimationFrame(focusSearch);
-      return () => cancelAnimationFrame(frame);
-    }
-  }, [isSearchOpen, focusSearch]);
-
   // 每家可被搜到的文字：名称、备注、官网、请求地址（请求地址要解析配置，只随列表变化重算）
   const searchIndex = useMemo(
     () =>
@@ -494,60 +487,67 @@ export function ProviderList({
   );
 
   // 搜索框放在列表上方第一行的最右端，不盖住卡片、打开时卡片也不下移
-  const searchField = (
-    <AnimatePresence>
-      {isSearchOpen && (
-        <motion.div
-          key="provider-search"
-          initial={{ opacity: 0, x: 8 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 8 }}
-          transition={{ duration: 0.15, ease: "easeOut" }}
-          className="relative flex w-64 min-w-[10rem] shrink items-center"
-        >
-          <Search className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" />
-          <Input
-            ref={searchInputRef}
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder={t("provider.searchPlaceholder", {
-              defaultValue: "Search name, notes, or URL...",
-            })}
-            aria-label={t("provider.searchAriaLabel", {
-              defaultValue: "Search providers",
-            })}
-            title={`${t("provider.searchScopeHint", {
-              defaultValue:
-                "Matches provider name, notes, website, and API address.",
-            })} ${t("provider.searchCloseHint", {
-              defaultValue: "Press Esc to close",
-            })}`}
-            className={searchTerm ? "pe-[5.5rem] ps-8" : "pe-9 ps-8"}
-          />
-          {searchTerm && (
-            <Button
-              variant="quiet"
-              size="compact"
-              className="absolute end-8 top-1/2 h-6 -translate-y-1/2 px-1.5"
-              onClick={() => setSearchTerm("")}
-            >
-              {t("common.clear", { defaultValue: "Clear" })}
-            </Button>
-          )}
-          <Button
-            variant="quiet"
-            size="icon-compact"
-            className="absolute end-1 top-1/2 h-6 w-6 -translate-y-1/2"
-            onClick={() => setIsSearchOpen(false)}
-            aria-label={t("provider.searchCloseAriaLabel", {
-              defaultValue: "Close provider search",
-            })}
+  const searchControls = (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <AnimatePresence>
+        {isSearchOpen && (
+          <motion.div
+            key="provider-search"
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="relative flex w-44 min-w-[8rem] shrink items-center"
           >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </motion.div>
+            <Search className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" />
+            <Input
+              ref={searchInputRef}
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t("provider.searchPlaceholder", {
+                defaultValue: "Search name, notes, or URL...",
+              })}
+              aria-label={t("provider.searchAriaLabel", {
+                defaultValue: "Search providers",
+              })}
+              title={`${t("provider.searchScopeHint", {
+                defaultValue:
+                  "Matches provider name, notes, website, and API address.",
+              })} ${t("provider.searchCloseHint", {
+                defaultValue: "Press Esc to close",
+              })}`}
+              className={searchTerm ? "pe-9 ps-8" : "pe-9 ps-8"}
+            />
+            {searchTerm && (
+              <Button
+                variant="quiet"
+                size="icon-compact"
+                className="absolute end-1 top-1/2 h-6 w-6 -translate-y-1/2"
+                onClick={() => {
+                  setSearchTerm("");
+                  focusSearch();
+                }}
+                aria-label={t("common.clear", { defaultValue: "Clear" })}
+                title={t("common.clear", { defaultValue: "Clear" })}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {onCreate && (
+        <Button
+          variant="neutral"
+          size="regular"
+          className="shrink-0 gap-1 pe-2 ps-3"
+          onClick={onCreate}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("provider.addProvider")}
+        </Button>
       )}
-    </AnimatePresence>
+    </div>
   );
 
   const renderSectionTitle = (section: ProviderSection) => (
@@ -574,7 +574,7 @@ export function ProviderList({
   return (
     <div className="space-y-4">
       {piStateErrorNotice}
-      {searchSlot && createPortal(searchField, searchSlot)}
+      {searchSlot && createPortal(searchControls, searchSlot)}
       {showListHeader && (
         <div
           className={cn(
@@ -585,7 +585,7 @@ export function ProviderList({
           <div className="min-w-0 flex-1">
             {liftLeadTitle && renderSectionTitle(leadSection)}
           </div>
-          {searchField}
+          {searchControls}
         </div>
       )}
 

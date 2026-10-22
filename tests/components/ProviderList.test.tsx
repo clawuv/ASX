@@ -397,9 +397,7 @@ describe("ProviderList Component", () => {
       expect(reopened).toHaveValue("beta");
       fireEvent.click(screen.getByRole("button", { name: "Clear" }));
       expect(screen.getByTestId("provider-card-alpha")).toBeInTheDocument();
-      fireEvent.click(
-        screen.getByRole("button", { name: "Close provider search" }),
-      );
+      fireEvent.keyDown(window, { key: "Escape" });
       await waitFor(() => expect(reopened).not.toBeInTheDocument());
     },
   );

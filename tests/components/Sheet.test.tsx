@@ -58,20 +58,17 @@ describe("SheetContent", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("page mode renders a page header whose back button closes the sheet", () => {
+  it("page mode renders a page header without a back button", () => {
     const onOpenChange = vi.fn();
     render(
       <Sheet open onOpenChange={onOpenChange}>
-        <SheetPageContent title="Edit prompt" closeLabel="back">
-          body
-        </SheetPageContent>
+        <SheetPageContent title="Edit prompt">body</SheetPageContent>
       </Sheet>,
     );
     expect(
       screen.getByRole("dialog", { name: "Edit prompt" }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "back" }));
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole("button", { name: "back" })).toBeNull();
   });
 
   it("non-modal page mode leaves the rest of the window interactive", () => {
@@ -83,9 +80,7 @@ describe("SheetContent", () => {
           sidebar
         </button>
         <Sheet open modal={false} onOpenChange={onOpenChange}>
-          <SheetPageContent title="Edit MCP" closeLabel="back">
-            body
-          </SheetPageContent>
+          <SheetPageContent title="Edit MCP">body</SheetPageContent>
         </Sheet>
       </>,
     );

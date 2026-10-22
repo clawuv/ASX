@@ -257,6 +257,32 @@ export function AppsPage() {
             <span className="whitespace-nowrap text-caption text-fg-3">
               {lastChecked}
             </span>
+            <HoverTip
+              content={
+                tools.isLoadingTools
+                  ? t("appsPage.checking")
+                  : t("appsPage.checkUpdates")
+              }
+            >
+              <Button
+                variant="quiet"
+                size="icon-compact"
+                disabled={tools.isLoadingTools || tools.isAnyBusy}
+                aria-label={
+                  tools.isLoadingTools
+                    ? t("appsPage.checking")
+                    : t("appsPage.checkUpdates")
+                }
+                onClick={() => void tools.checkForUpdates()}
+              >
+                <RefreshCw
+                  className={cn(
+                    "h-4 w-4",
+                    tools.isLoadingTools && "animate-spin",
+                  )}
+                />
+              </Button>
+            </HoverTip>
             {(updatableCount > 0 || tools.batchAction) && (
               <HoverTip
                 content={t("settings.updateAllTools", {
@@ -287,32 +313,6 @@ export function AppsPage() {
                 </Button>
               </HoverTip>
             )}
-            <HoverTip
-              content={
-                tools.isLoadingTools
-                  ? t("appsPage.checking")
-                  : t("appsPage.checkUpdates")
-              }
-            >
-              <Button
-                variant="quiet"
-                size="icon-compact"
-                disabled={tools.isLoadingTools || tools.isAnyBusy}
-                aria-label={
-                  tools.isLoadingTools
-                    ? t("appsPage.checking")
-                    : t("appsPage.checkUpdates")
-                }
-                onClick={() => void tools.checkForUpdates()}
-              >
-                <RefreshCw
-                  className={cn(
-                    "h-4 w-4",
-                    tools.isLoadingTools && "animate-spin",
-                  )}
-                />
-              </Button>
-            </HoverTip>
             <DropdownMenu>
               <HoverTip content={t("common.more")}>
                 <DropdownMenuTrigger asChild>
@@ -355,7 +355,7 @@ export function AppsPage() {
         id="main-content"
         className="min-h-0 flex-1 overflow-y-auto scroll-stable"
       >
-        <div ref={tableRef} className="px-6 pb-10 pt-4">
+        <div ref={tableRef} className="px-6 pb-10">
           <div className="flex h-14 items-center gap-3">
             <MatrixSearch
               className="w-[320px] min-w-[180px] shrink"

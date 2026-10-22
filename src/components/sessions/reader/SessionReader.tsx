@@ -140,7 +140,6 @@ export interface SessionReaderProps {
   hasNext: boolean;
   onPrev: () => void;
   onNext: () => void;
-  onBack: () => void;
   onLaunch: () => void;
   onCopy: (text: string, message: string) => void;
   onOpenTerminalSettings: () => void;
@@ -162,7 +161,6 @@ export function SessionReader({
   hasNext,
   onPrev,
   onNext,
-  onBack,
   onLaunch,
   onCopy,
   onOpenTerminalSettings,
@@ -748,7 +746,6 @@ export function SessionReader({
           onIncludeThinkingChange={setIncludeThinking}
           onPrev={onPrev}
           onNext={onNext}
-          onBack={onBack}
           onLaunch={onLaunch}
           onCopy={onCopy}
           onCopyMarkdown={copyMarkdown}

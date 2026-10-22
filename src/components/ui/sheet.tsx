@@ -1,8 +1,7 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 import { AppPageHeader } from "@/components/shell/AppPageHeader";
-import { Button } from "@/components/ui/button";
 import { DRAG_REGION_ATTR } from "@/lib/platform";
 import { useUnsavedChangesTracker } from "@/lib/unsavedChanges";
 import { cn } from "@/lib/utils";
@@ -92,10 +91,8 @@ const SheetPageContent = React.forwardRef<
     "title"
   > & {
     title: React.ReactNode;
-    /** 返回按钮的无障碍名字 */
-    closeLabel: string;
   }
->(({ title, closeLabel, children, ...props }, ref) => (
+>(({ title, children, ...props }, ref) => (
   <DialogPrimitive.Portal
     container={document.getElementById("content-area") ?? undefined}
   >
@@ -112,18 +109,6 @@ const SheetPageContent = React.forwardRef<
           <DialogPrimitive.Title asChild>
             <span {...DRAG_REGION_ATTR}>{title}</span>
           </DialogPrimitive.Title>
-        }
-        leading={
-          <DialogPrimitive.Close asChild>
-            <Button
-              variant="quiet"
-              size="icon-compact"
-              className="h-8 w-8"
-              aria-label={closeLabel}
-            >
-              <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-            </Button>
-          </DialogPrimitive.Close>
         }
       />
       <UnsavedChangesScope>{children}</UnsavedChangesScope>

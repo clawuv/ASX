@@ -1082,7 +1082,7 @@ pub fn run() {
                 #[cfg(target_os = "linux")]
                 {
                     // Use Tauri's path API to get correct path (includes app identifier)
-                    // tauri-plugin-deep-link writes to: ~/.local/share/com.ccswitch.desktop/applications/cc-switch-handler.desktop
+                    // tauri-plugin-deep-link writes to: ~/.local/share/<app identifier>/applications/cc-switch-handler.desktop
                     // Only register if .desktop file doesn't exist to avoid overwriting user customizations
                     let should_register = app
                         .path()

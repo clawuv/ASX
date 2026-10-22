@@ -611,11 +611,7 @@ const McpFormModal: React.FC<McpFormModalProps> = ({
         if (!open && !savingRef.current) onClose();
       }}
     >
-      <SheetPageContent
-        title={title}
-        closeLabel={t("common.back")}
-        aria-describedby={undefined}
-      >
+      <SheetPageContent title={title} aria-describedby={undefined}>
         <SheetBody className="flex flex-col gap-5 px-6 pb-6 pt-5">
           {!isEdit && (
             <>

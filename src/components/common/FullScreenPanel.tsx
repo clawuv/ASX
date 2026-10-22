@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ChevronLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { HoverTip } from "@/components/ui/hover-tip";
@@ -17,6 +17,8 @@ interface FullScreenPanelProps {
   subtitle?: React.ReactNode;
   /** 返回按钮的读屏文字，默认「返回」 */
   backLabel?: string;
+  /** 顶部导航已有返回/前进后，面板页头不再显示返回按钮 */
+  showBackButton?: boolean;
   /** 页头右侧 */
   actions?: React.ReactNode;
   onClose: () => void;
@@ -68,6 +70,7 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({
   title,
   subtitle,
   backLabel,
+  showBackButton = false,
   actions,
   onClose,
   children,
@@ -168,18 +171,20 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({
             subtitle={subtitle}
             actions={actions}
             leading={
-              <HoverTip content={backLabel ?? t("common.back")}>
-                <Button
-                  type="button"
-                  variant="quiet"
-                  size="icon-compact"
-                  className="h-8 w-8"
-                  onClick={onClose}
-                  aria-label={backLabel ?? t("common.back")}
-                >
-                  <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-                </Button>
-              </HoverTip>
+              showBackButton ? (
+                <HoverTip content={backLabel ?? t("common.back")}>
+                  <Button
+                    type="button"
+                    variant="quiet"
+                    size="icon-compact"
+                    className="h-8 w-8"
+                    onClick={onClose}
+                    aria-label={backLabel ?? t("common.back")}
+                  >
+                    <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+                  </Button>
+                </HoverTip>
+              ) : undefined
             }
           />
 

@@ -50,6 +50,10 @@ const renderSidebar = (settings: Partial<Settings>) => {
         settingsSection="general"
         onSelectApp={vi.fn()}
         onSelectPage={vi.fn()}
+        canNavigateBack={false}
+        canNavigateForward={false}
+        onNavigateBack={vi.fn()}
+        onNavigateForward={vi.fn()}
         onSelectSettingsSection={vi.fn()}
         onExitSettings={vi.fn()}
       />

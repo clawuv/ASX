@@ -164,7 +164,6 @@ const PromptFormPanel: React.FC<PromptFormPanelProps> = ({
     >
       <SheetPageContent
         title={title}
-        closeLabel={t("common.back")}
         onEscapeKeyDown={(event) => {
           if (savingRef.current) event.preventDefault();
         }}

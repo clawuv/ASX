@@ -3,7 +3,6 @@ import { Layers, Plug, Route, Settings2, Shuffle } from "lucide-react";
 import type { AppMode } from "@/types/proxy";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { HelpTip } from "@/components/ui/help-tip";
 import { HoverTip } from "@/components/ui/hover-tip";
 import {
   SegmentThumb,
@@ -77,7 +76,7 @@ export function ModeTabs({
   );
 
   return (
-    <div className="flex min-h-12 shrink-0 items-center gap-4 px-6 pt-3">
+    <div className="flex min-h-12 shrink-0 items-center gap-3 px-6 pt-3">
       <div
         ref={indicator.ref}
         role="group"
@@ -100,7 +99,7 @@ export function ModeTabs({
               aria-pressed={selected}
               onClick={() => onView(mode)}
               className={cn(
-                "relative inline-flex h-[30px] min-w-[96px] items-center justify-center gap-1.5 rounded-[7px] px-4 text-body transition-colors duration-150",
+                "relative inline-flex h-[30px] min-w-[72px] items-center justify-center gap-1 rounded-[7px] px-2.5 text-body transition-colors duration-150",
                 isActive
                   ? MODE_TONE[mode].text
                   : selected
@@ -129,14 +128,6 @@ export function ModeTabs({
           );
         })}
       </div>
-      <HelpTip title={t("mode.help.title")} className="-ms-2">
-        {modes.map((mode) => (
-          <span key={mode} className="block">
-            {t(`mode.help.${mode}`)}
-          </span>
-        ))}
-      </HelpTip>
-
       <div className="flex-1" />
       {searchSlotRef && (
         <div

@@ -33,6 +33,7 @@
     "copy": "Kopyala",
     "view": "Görüntüle",
     "back": "Geri",
+    "forward": "İleri",
     "refresh": "Yenile",
     "refreshing": "Yenileniyor...",
     "import": "İçe aktar",
@@ -2054,7 +2055,7 @@
     "crossApp": "Uygulamalar genelinde",
     "groupHint": {
       "login": "API anahtarı yok: mevcut bir hesapla oturum açın. Claude dışındaki her şey yönlendirmeden geçer.",
-      "vendor": "Satıcıların kendi API'leri ve kodlama planları. Satıcının Çin sitesi, global sitesi ve planları aynı satırı paylaşıyor; Bir sonraki adımda sürümü seçin.",
+      "vendor": "Satıcıların kendi API'leri ve kodlama planları.",
       "thirdparty": "Birçok modeli bir araya getiren veya resmi modellerin yeniden satışını yapan platformlar.",
       "cloud": "Bulut sağlayıcı hesabına sahip modelleri arayın.",
       "plugin": "OpenCode eklentileri için model atama yapılandırmaları.",

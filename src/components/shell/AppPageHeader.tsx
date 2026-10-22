@@ -65,7 +65,7 @@ export function AppPageHeader({
         <h1
           {...DRAG_REGION_ATTR}
           className={cn(
-            "m-0 whitespace-nowrap",
+            "m-0 whitespace-nowrap text-fg-2",
             variant === "app" ? "text-title" : "text-page",
             truncateTitle && "min-w-0 truncate",
           )}
@@ -83,22 +83,16 @@ export function AppPageHeader({
           </div>
         )}
       </div>
+      {/* 撑开标题和右侧工具簇；窗口按钮继续贴右 */}
+      <div {...DRAG_REGION_ATTR} className="flex-1" />
       {actions && (
         <div
-          className="flex min-w-0 shrink items-center justify-start gap-2"
+          className="flex shrink-0 items-center justify-end gap-2"
           style={NO_DRAG}
         >
-          {/* 左对齐的工具簇，前面加竖分割线和标题区隔开 */}
-          <span
-            aria-hidden="true"
-            className="h-5 w-px shrink-0 bg-border"
-            {...DRAG_REGION_ATTR}
-          />
           {actions}
         </div>
       )}
-      {/* 窗口按钮始终贴右；截断标题交给 min-w-0 处理，占位空档不再省略 */}
-      <div {...DRAG_REGION_ATTR} className="flex-1" />
       {windowControls && (
         <div className="flex shrink-0 items-center gap-1" style={NO_DRAG}>
           {windowControls}

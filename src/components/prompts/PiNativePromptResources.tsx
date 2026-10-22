@@ -117,7 +117,6 @@ function PromptDrawer({
   footer: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const { t } = useTranslation();
   return (
     <Sheet
       open
@@ -126,7 +125,7 @@ function PromptDrawer({
         if (!open && !busy) onClose();
       }}
     >
-      <SheetPageContent title={title} closeLabel={t("common.back")}>
+      <SheetPageContent title={title}>
         <SheetDescription className="sr-only">{description}</SheetDescription>
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scroll-stable overscroll-contain px-6 pb-6 pt-5">
           {children}

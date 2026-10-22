@@ -208,6 +208,7 @@ export function UsageDashboard({
     undefined,
   );
   const [model, setModel] = useState<string | undefined>(undefined);
+  const [moreMetricsOpen, setMoreMetricsOpen] = useState(false);
   const [statusCode, setStatusCode] = useState<number | undefined>(undefined);
 
   // 请求日志显示哪些列在「设置」页签里改，这里只按设置画
@@ -455,9 +456,9 @@ export function UsageDashboard({
       <HoverTip content={showSyncText ? syncTip : `${syncText} · ${syncTip}`}>
         <Button
           type="button"
-          variant="neutral"
+          variant="quiet"
           size="regular"
-          className="shrink-0 gap-1.5 ps-2.5"
+          className="shrink-0 gap-1.5 ps-2.5 text-fg-2"
           disabled={syncingSession}
           onClick={() => void runManualSessionSync()}
         >
@@ -685,6 +686,22 @@ export function UsageDashboard({
         triggerLabel={rangeLabel}
         onApply={applyRange}
       />
+      <Button
+        type="button"
+        variant="neutral"
+        size="regular"
+        className="shrink-0 gap-1 pe-2 ps-3"
+        aria-expanded={moreMetricsOpen}
+        onClick={() => setMoreMetricsOpen(!moreMetricsOpen)}
+      >
+        {t("usage.metrics.more")}
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-fg-2 transition-transform duration-150",
+            moreMetricsOpen && "rotate-180",
+          )}
+        />
+      </Button>
     </div>
   );
 
@@ -846,7 +863,11 @@ export function UsageDashboard({
             disabled={syncingSession}
             onClick={() => void runManualSessionSync()}
           >
-            {syncingSession && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {syncingSession ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
             {t("usage.sessionSync.syncNow")}
           </Button>
           <Button
@@ -874,6 +895,7 @@ export function UsageDashboard({
           model={model}
           refreshIntervalMs={0}
           compact={compact}
+          moreOpen={moreMetricsOpen}
         />
 
         {/* 「全部」看长期分布用热力图；24 小时到 30 天这类短范围用趋势图 */}

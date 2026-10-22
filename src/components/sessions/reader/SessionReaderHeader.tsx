@@ -2,7 +2,6 @@ import { memo, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowDown,
-  ArrowLeft,
   ArrowUp,
   ChevronDown,
   ChevronLeft,
@@ -73,7 +72,6 @@ export interface SessionReaderHeaderProps {
   onIncludeThinkingChange: (value: boolean) => void;
   onPrev: () => void;
   onNext: () => void;
-  onBack: () => void;
   onLaunch: () => void;
   onCopy: (text: string, message: string) => void;
   onCopyMarkdown: () => void;
@@ -95,7 +93,6 @@ export const SessionReaderHeader = memo(function SessionReaderHeader({
   onIncludeThinkingChange,
   onPrev,
   onNext,
-  onBack,
   onLaunch,
   onCopy,
   onCopyMarkdown,
@@ -362,21 +359,6 @@ export const SessionReaderHeader = memo(function SessionReaderHeader({
     <AppPageHeader
       variant="app"
       truncateTitle
-      leading={
-        <HoverTip content={t("sessionManager.back", { defaultValue: "返回" })}>
-          <button
-            type="button"
-            id="session-reader-back"
-            aria-label={t("sessionManager.backToList", {
-              defaultValue: "返回会话列表",
-            })}
-            onClick={onBack}
-            className={readerIconButton}
-          >
-            <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-          </button>
-        </HoverTip>
-      }
       title={
         <span {...DRAG_REGION_ATTR} title={title}>
           {title}

@@ -380,7 +380,6 @@ export function SessionManagerPage({
 
   const openReader = (session: SessionMeta) => {
     setReaderKey(getSessionKey(session));
-    focusSoon(["session-reader-back"]);
   };
 
   const backToList = () => {
@@ -1017,7 +1016,6 @@ export function SessionManagerPage({
               readerIndex < orderedSessions.length - 1 &&
               setReaderKey(getSessionKey(orderedSessions[readerIndex + 1]))
             }
-            onBack={backToList}
             onLaunch={() => void handleLaunch(readerSession)}
             onCopy={handleCopy}
             onOpenTerminalSettings={onOpenTerminalSettings ?? (() => undefined)}

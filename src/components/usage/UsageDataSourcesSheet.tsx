@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import {
   Sheet,
   SheetBody,
@@ -145,7 +145,11 @@ export function UsageDataSourcesSheet({
                 disabled={syncing}
                 onClick={onSyncNow}
               >
-                {syncing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {syncing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
                 {t("usage.sessionSync.syncNow")}
               </Button>
             </div>

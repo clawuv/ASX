@@ -1,9 +1,6 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown } from "lucide-react";
 import { useUsageSummaryByApp } from "@/lib/query/usage";
 import { HelpTip } from "@/components/ui/help-tip";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   fmtInt,
@@ -29,6 +26,8 @@ interface UsageHeroProps {
   refreshIntervalMs: number;
   /** 窄容器下指标卡排成两列 */
   compact?: boolean;
+  /** 由筛选行中的「更多指标」按钮控制 */
+  moreOpen?: boolean;
 }
 
 /**
@@ -157,11 +156,11 @@ export function UsageHero({
   model,
   refreshIntervalMs,
   compact = false,
+  moreOpen = false,
 }: UsageHeroProps) {
   const { t, i18n } = useTranslation();
   const { money, moneyTitle } = useMoneyFormat();
   const locale = getLocaleFromLanguage(getResolvedLang(i18n));
-  const [moreOpen, setMoreOpen] = useState(false);
 
   const { data, isLoading } = useUsageSummaryByApp(
     range,
@@ -283,22 +282,6 @@ export function UsageHero({
             </div>
           )}
         </div>
-        <Button
-          type="button"
-          variant="quiet"
-          size="regular"
-          aria-expanded={moreOpen}
-          onClick={() => setMoreOpen((open) => !open)}
-          className="shrink-0 gap-1 pe-2 ps-2.5 text-fg-2"
-        >
-          {t("usage.metrics.more")}
-          <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 transition-transform duration-150",
-              moreOpen && "rotate-180",
-            )}
-          />
-        </Button>
       </div>
     </section>
   );

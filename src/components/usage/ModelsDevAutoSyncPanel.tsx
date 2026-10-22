@@ -633,7 +633,11 @@ export function ModelsDevAutoSyncPanel() {
               onClick={() => void syncNow()}
               disabled={isSyncing}
             >
-              {isSyncing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {isSyncing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
               {t("usage.modelsDevAutoSync.syncNow")}
             </Button>
             <DropdownMenu>

@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "@/lib/toast";
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
+import { ExternalLink, LayoutGrid, MoreHorizontal } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Provider, VisibleApps } from "@/types";
 import { KNOWN_APP_TYPES, type AppTypeFilter } from "@/types/usage";
@@ -133,6 +133,26 @@ interface SyncStatusUpdatedPayload {
 }
 
 type OpenClawConfigTab = "env" | "tools" | "agents";
+
+interface NavigationSnapshot {
+  activeApp: AppId;
+  currentView: View;
+  settingsSection: SettingsSection;
+  appConfigScrollTarget?: AppId;
+  openclawConfigTab: OpenClawConfigTab;
+  promptsApp: AppId;
+}
+
+const sameNavigationSnapshot = (
+  left: NavigationSnapshot,
+  right: NavigationSnapshot,
+) =>
+  left.activeApp === right.activeApp &&
+  left.currentView === right.currentView &&
+  left.settingsSection === right.settingsSection &&
+  left.appConfigScrollTarget === right.appConfigScrollTarget &&
+  left.openclawConfigTab === right.openclawConfigTab &&
+  left.promptsApp === right.promptsApp;
 
 const getInitialApp = (): AppId => {
   const saved = localStorage.getItem(APP_STORAGE_KEY) as AppId | null;
@@ -648,6 +668,55 @@ function App() {
     currentViewRef.current = currentView;
   }, [currentView]);
 
+  // 侧栏顶部的后退 / 前进：记录主要导航位置（页面、应用、设置分组和页面默认应用）。
+  const historyApplyingRef = useRef(false);
+  const [navigationHistory, setNavigationHistory] = useState<{
+    entries: NavigationSnapshot[];
+    index: number;
+  }>(() => ({
+    entries: [
+      {
+        activeApp,
+        currentView,
+        settingsSection,
+        appConfigScrollTarget,
+        openclawConfigTab,
+        promptsApp,
+      },
+    ],
+    index: 0,
+  }));
+
+  useEffect(() => {
+    if (historyApplyingRef.current) {
+      historyApplyingRef.current = false;
+      return;
+    }
+
+    const snapshot: NavigationSnapshot = {
+      activeApp,
+      currentView,
+      settingsSection,
+      appConfigScrollTarget,
+      openclawConfigTab,
+      promptsApp,
+    };
+    setNavigationHistory((history) => {
+      const current = history.entries[history.index];
+      if (sameNavigationSnapshot(current, snapshot)) return history;
+      const entries = history.entries.slice(0, history.index + 1);
+      entries.push(snapshot);
+      return { entries, index: entries.length - 1 };
+    });
+  }, [
+    activeApp,
+    currentView,
+    settingsSection,
+    appConfigScrollTarget,
+    openclawConfigTab,
+    promptsApp,
+  ]);
+
   // ─── 导航 ───────────────────────────────────────────────────────────────
   // MCP / Skills / 提示词在进行中的操作会锁住导航（卸载面板会丢掉进行中的状态）
 
@@ -665,6 +734,28 @@ function App() {
     if (!hasUnsavedChanges()) return false;
     setPendingLeave(() => proceed);
     return true;
+  };
+
+  const navigateHistory = (direction: -1 | 1) => {
+    if (managementBusyRef.current) return;
+    const targetIndex = navigationHistory.index + direction;
+    const target = navigationHistory.entries[targetIndex];
+    if (!target) return;
+
+    const applyTarget = () => {
+      historyApplyingRef.current = true;
+      setNavigationHistory((history) => ({ ...history, index: targetIndex }));
+      closeProviderPanels();
+      setActiveApp(target.activeApp);
+      localStorage.setItem(APP_STORAGE_KEY, target.activeApp);
+      setCurrentView(target.currentView);
+      setSettingsSection(target.settingsSection);
+      setAppConfigScrollTarget(target.appConfigScrollTarget);
+      setOpenclawConfigTab(target.openclawConfigTab);
+      setPromptsApp(target.promptsApp);
+    };
+    if (confirmLeave(applyTarget)) return;
+    applyTarget();
   };
 
   const openSettings = (
@@ -1186,15 +1277,15 @@ function App() {
             </Button>
           )}
           {isProviderListActive && (
-            <HoverTip content={t("provider.addProvider")}>
+            <HoverTip content={t("nav.apps")}>
               <Button
                 variant="quiet"
                 size="icon-compact"
                 className="h-8 w-8"
-                aria-label={t("provider.addProvider")}
-                onClick={() => openAddProvider(currentModeView)}
+                aria-label={t("nav.apps")}
+                onClick={() => openPageFromNav("apps")}
               >
-                <Plus className="h-4 w-4" />
+                <LayoutGrid className="h-4 w-4" />
               </Button>
             </HoverTip>
           )}
@@ -1556,6 +1647,12 @@ function App() {
           settingsSection={settingsSection}
           onSelectApp={selectApp}
           onSelectPage={openPageFromNav}
+          canNavigateBack={navigationHistory.index > 0}
+          canNavigateForward={
+            navigationHistory.index < navigationHistory.entries.length - 1
+          }
+          onNavigateBack={() => navigateHistory(-1)}
+          onNavigateForward={() => navigateHistory(1)}
           onSelectSettingsSection={(section) => {
             setAppConfigScrollTarget(undefined);
             setSettingsSection(section);

@@ -537,13 +537,8 @@ export function SwitchModePanel({
       <div
         ref={scrollRef}
         id="main-content"
-        className="min-h-0 flex-1 overflow-y-auto scroll-stable overflow-x-hidden px-6 pb-12 pt-3"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto scroll-stable overflow-x-hidden px-6 pb-3 pt-3"
       >
-        {notices.length > 0 && (
-          <div role="status" className="mb-3 flex flex-col gap-2">
-            {notices}
-          </div>
-        )}
         <ProviderList
           {...listCallbacks}
           providers={providers}
@@ -563,6 +558,10 @@ export function SwitchModePanel({
           switchMode={switchMode}
           searchSlot={searchSlot}
         />
+
+        <div role="status" className="mt-auto flex flex-col gap-2 pt-3">
+          {notices}
+        </div>
       </div>
 
       <ModeDialog

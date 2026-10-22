@@ -85,7 +85,7 @@ describe("FullScreenPanel header", () => {
     );
     const heading = screen.getByRole("heading", { name: title });
     expect(heading).toHaveClass("min-w-0", "truncate");
-    expect(heading.parentElement).toHaveClass("flex-1");
+    expect(heading.parentElement).toHaveClass("min-w-0", "shrink");
     expect(heading.parentElement).not.toHaveClass("shrink-0");
   });
 
@@ -102,8 +102,6 @@ describe("FullScreenPanel header", () => {
         DRAG_REGION_ENABLED,
       );
     }
-    expect(
-      screen.getByRole("button", { name: "common.back" }),
-    ).not.toHaveAttribute("data-tauri-drag-region");
+    expect(screen.queryByRole("button", { name: "common.back" })).toBeNull();
   });
 });

@@ -217,10 +217,7 @@ export function SkillImportDialog({
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
           {appChoices.map((app) => (
-            <label
-              key={app}
-              className="flex h-6 items-center gap-2 text-body"
-            >
+            <label key={app} className="flex h-6 items-center gap-2 text-body">
               <input
                 type="checkbox"
                 className={CHECKBOX_CLASS}

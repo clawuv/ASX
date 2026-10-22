@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getVersion } from "@tauri-apps/api/app";
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   Bot,
   ChartColumn,
@@ -57,6 +58,11 @@ interface SidebarProps {
   /** 兼容旧调用；智能体合并菜单后侧栏不再直接选单个应用。 */
   onSelectApp?: (app: AppId) => void;
   onSelectPage: (page: GlobalPage | "settings") => void;
+  /** 侧栏顶部的导航历史 */
+  canNavigateBack: boolean;
+  canNavigateForward: boolean;
+  onNavigateBack: () => void;
+  onNavigateForward: () => void;
   onSelectSettingsSection: (section: SettingsSection) => void;
   onExitSettings: () => void;
   /** 打开了「启动时检查应用更新」并且查到了新版本 */
@@ -89,8 +95,8 @@ export function Sidebar(props: SidebarProps) {
         "relative flex h-full shrink-0 flex-col whitespace-nowrap text-body text-fg-1",
         collapseToOverlay
           ? "sidebar-overlay-collapsed overflow-visible bg-transparent"
-          // 菜单区深色下透出根节点的窗框渐变（.app-frame-gradient），浅色用侧栏底色
-          : "sidebar-gradient overflow-hidden bg-sidebar dark:bg-transparent",
+          : // 菜单区深色下透出根节点的窗框渐变（.app-frame-gradient），浅色用侧栏底色
+            "sidebar-gradient overflow-hidden bg-sidebar dark:bg-transparent",
       )}
       style={{ width: sidebarWidth(collapsed) }}
     >
@@ -100,7 +106,14 @@ export function Sidebar(props: SidebarProps) {
       >
         {t("nav.skipToContent")}
       </a>
-      <SidebarTopBar collapsed={collapsed} onToggle={toggle} />
+      <SidebarTopBar
+        collapsed={collapsed}
+        onToggle={toggle}
+        canNavigateBack={props.canNavigateBack}
+        canNavigateForward={props.canNavigateForward}
+        onNavigateBack={props.onNavigateBack}
+        onNavigateForward={props.onNavigateForward}
+      />
       {showCollapsedDirectory ? (
         inSettings ? (
           <SettingsDirectory {...props} collapsed={collapsed} />
@@ -115,9 +128,17 @@ export function Sidebar(props: SidebarProps) {
 function SidebarTopBar({
   collapsed,
   onToggle,
+  canNavigateBack,
+  canNavigateForward,
+  onNavigateBack,
+  onNavigateForward,
 }: {
   collapsed: boolean;
   onToggle: () => void;
+  canNavigateBack: boolean;
+  canNavigateForward: boolean;
+  onNavigateBack: () => void;
+  onNavigateForward: () => void;
 }) {
   const { t } = useTranslation();
   const tipSide = collapsed ? "right" : "left";
@@ -137,6 +158,43 @@ function SidebarTopBar({
     </HoverTip>
   );
 
+  const historyButtons = (
+    <>
+      <HoverTip
+        content={t("common.back")}
+        side={tipSide}
+        disableHoverableContent
+      >
+        <button
+          type="button"
+          onClick={onNavigateBack}
+          disabled={!canNavigateBack}
+          aria-label={t("common.back")}
+          style={NO_DRAG}
+          className="flex h-7 w-7 items-center justify-center rounded-control text-fg-2 transition-[background-color,color,scale] hover:bg-subtle hover:text-fg-1 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40"
+        >
+          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+        </button>
+      </HoverTip>
+      <HoverTip
+        content={t("common.forward")}
+        side={tipSide}
+        disableHoverableContent
+      >
+        <button
+          type="button"
+          onClick={onNavigateForward}
+          disabled={!canNavigateForward}
+          aria-label={t("common.forward")}
+          style={NO_DRAG}
+          className="flex h-7 w-7 items-center justify-center rounded-control text-fg-2 transition-[background-color,color,scale] hover:bg-subtle hover:text-fg-1 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40"
+        >
+          <ArrowRight className="h-4 w-4" strokeWidth={1.5} />
+        </button>
+      </HoverTip>
+    </>
+  );
+
   // macOS 展开：红绿灯在左侧，收起按钮贴右侧；标题栏保持一行，不单独显示应用名。
   if (!collapsed && isMac()) {
     return (
@@ -145,7 +203,10 @@ function SidebarTopBar({
         {...DRAG_REGION_ATTR}
         style={DRAG_REGION_STYLE as React.CSSProperties}
       >
-        {toggleButton}
+        <div className="flex items-center gap-0.5">
+          {toggleButton}
+          {historyButtons}
+        </div>
       </div>
     );
   }
@@ -159,7 +220,10 @@ function SidebarTopBar({
         style={DRAG_REGION_STYLE as React.CSSProperties}
       >
         <div className="absolute left-[80px] top-[10px] z-[3]" style={NO_DRAG}>
-          {toggleButton}
+          <div className="flex items-center gap-0.5">
+            {toggleButton}
+            {historyButtons}
+          </div>
         </div>
       </div>
     );
@@ -192,7 +256,10 @@ function SidebarTopBar({
           </span>
         </span>
       )}
-      {toggleButton}
+      <div className="flex items-center gap-0.5">
+        {toggleButton}
+        {historyButtons}
+      </div>
     </div>
   );
 }
