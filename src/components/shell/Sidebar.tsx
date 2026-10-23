@@ -224,7 +224,7 @@ function SidebarTopBar({
         <div
           className={cn(
             "absolute top-[12px] z-[3]",
-            isMac() ? "left-[80px] top-[10px]" : "left-[8px]",
+            isMac() ? "left-[80px] top-[10px]" : "left-[30px]",
           )}
           style={NO_DRAG}
         >

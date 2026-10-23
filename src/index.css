@@ -688,23 +688,22 @@ input[type="password"]::-ms-clear {
   }
 }
 
-/* 收起后侧栏宽度归零，收起按钮仍悬浮在原位置；
-   页头右移让开按钮，正文继续占满左侧内容区。macOS 还要让开红绿灯。 */
+/* 收起后侧栏宽度归零，收起按钮仍悬浮在原位置。
+   只让页头标题避开按钮；正文保持从内容区左侧开始，不预留空白条。 */
 nav.sidebar-overlay-collapsed.sidebar-overlay-mac
   ~ #content-area
   header[data-app-page-header] {
-  /* 收起按钮 + 后退/前进按钮：80 起步，三枚 28px 按钮到 168，再留一档间距 */
-  padding-left: 184px;
+  padding-inline-start: 184px;
 }
 
 nav.sidebar-overlay-collapsed:not(.sidebar-overlay-mac)
   ~ #content-area
   header[data-app-page-header] {
-  /* Windows / Linux：顶条三枚按钮从 8px 到约 100px */
-  padding-left: 104px;
+  padding-inline-start: 128px;
 }
 
-/* 侧栏收起后内容卡片与窗口左缘留出同款 8px 间隙 */
+/* 收起后内容卡片与窗口左缘保留 8px 间隙 */
 nav.sidebar-overlay-collapsed ~ #content-area {
   margin-left: 8px;
 }
+

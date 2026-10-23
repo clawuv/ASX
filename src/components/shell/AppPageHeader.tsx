@@ -42,7 +42,7 @@ export function AppPageHeader({
     <header
       data-app-page-header
       className={cn(
-        "flex h-[52px] shrink-0 items-center gap-5 pe-4 ps-6",
+        "flex h-[52px] shrink-0 items-center gap-5 pb-4 pe-4 ps-6",
         className,
       )}
       {...DRAG_REGION_ATTR}
