@@ -10,22 +10,6 @@ vi.mock("@/components/JsonEditor", () => ({
   ),
 }));
 
-vi.mock("@/components/providers/forms/hooks", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/providers/forms/hooks")>();
-  const signedOut = {
-    isAuthenticated: false,
-    isStatusSuccess: true,
-    accounts: [],
-  };
-  return {
-    ...actual,
-    useCopilotAuth: () => signedOut,
-    useCodexOauth: () => signedOut,
-    useXaiOauth: () => signedOut,
-  };
-});
-
 function renderLogin(
   env: Record<string, string> = {},
   appId: "agy" | "gemini" = "agy",

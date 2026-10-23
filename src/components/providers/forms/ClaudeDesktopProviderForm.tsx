@@ -25,9 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BasicFormFields } from "./BasicFormFields";
-import { CodexOAuthSection } from "./CodexOAuthSection";
-import { CopilotAuthSection } from "./CopilotAuthSection";
-import { XaiOAuthSection } from "./XaiOAuthSection";
 import { ApiKeySection } from "./shared/ApiKeySection";
 import { EndpointField } from "./shared/EndpointField";
 import { ModelDropdown } from "./shared/ModelDropdown";
@@ -48,24 +45,14 @@ import {
   type ClaudeDesktopRoleId,
 } from "@/config/claudeDesktopProviderPresets";
 import {
-  fetchCodexOauthModels,
   fetchModelsForConfig,
-  fetchXaiOauthModels,
   showFetchModelsError,
   type FetchedModel,
 } from "@/lib/api/model-fetch";
 import {
-  copilotGetModels,
-  copilotGetModelsForAccount,
-} from "@/lib/api/copilot";
-import {
   providersApi,
   type ClaudeDesktopDefaultRoute,
 } from "@/lib/api/providers";
-import { resolveManagedAccountId } from "@/lib/authBinding";
-import type { ManagedAuthProvider } from "@/lib/api";
-import { useCopilotAuth, useCodexOauth, useXaiOauth } from "./hooks";
-import { isOAuthProviderType } from "@/config/constants";
 
 export type ClaudeDesktopProviderFormValues = ProviderFormData & {
   presetId?: string;
@@ -100,7 +87,6 @@ export interface ClaudeDesktopProviderFormProps {
     iconColor?: string;
   };
   showButtons?: boolean;
-  onManageAuthAccounts?: (target: ManagedAuthProvider) => void;
 }
 
 type RouteRow = {
@@ -253,12 +239,9 @@ export function ClaudeDesktopProviderForm({
   onSubmittingChange,
   initialData,
   showButtons = true,
-  onManageAuthAccounts,
 }: ClaudeDesktopProviderFormProps) {
   const { t } = useTranslation();
-  const initialMode = isOAuthProviderType(initialData?.meta?.providerType)
-    ? "proxy"
-    : (initialData?.meta?.claudeDesktopMode ?? "direct");
+  const initialMode = initialData?.meta?.claudeDesktopMode ?? "direct";
   const [mode, setMode] = useState<"direct" | "proxy">(initialMode);
   const [apiFormat, setApiFormat] = useState<ClaudeApiFormat>(
     initialData?.meta?.apiFormat ?? "anthropic",
@@ -274,18 +257,6 @@ export function ClaudeDesktopProviderForm({
     envString(initialData?.settingsConfig, "ANTHROPIC_API_KEY")
       ? "ANTHROPIC_API_KEY"
       : "ANTHROPIC_AUTH_TOKEN",
-  );
-  const [selectedGitHubAccountId, setSelectedGitHubAccountId] = useState<
-    string | null
-  >(() => resolveManagedAccountId(initialData?.meta, "github_copilot"));
-  const [selectedCodexAccountId, setSelectedCodexAccountId] = useState<
-    string | null
-  >(() => resolveManagedAccountId(initialData?.meta, "codex_oauth"));
-  const [selectedXaiAccountId, setSelectedXaiAccountId] = useState<
-    string | null
-  >(() => resolveManagedAccountId(initialData?.meta, "xai_oauth"));
-  const [codexFastMode, setCodexFastMode] = useState<boolean>(
-    () => initialData?.meta?.codexFastMode ?? false,
   );
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(
     "custom",
@@ -383,26 +354,10 @@ export function ClaudeDesktopProviderForm({
     }),
     [t],
   );
-  const activeProviderType =
-    activePreset?.providerType ?? initialData?.meta?.providerType;
-  const { isAuthenticated: isCopilotAuthenticated, accounts: copilotAccounts } =
-    useCopilotAuth();
-  const {
-    isAuthenticated: isCodexOauthAuthenticated,
-    defaultAccountId: codexOauthDefaultAccountId,
-    accounts: codexOauthAccounts,
-  } = useCodexOauth();
-  const {
-    isAuthenticated: isXaiOauthAuthenticated,
-    accounts: xaiOauthAccounts,
-  } = useXaiOauth();
   const isOfficial =
     initialData?.category === "official" ||
     activePreset?.category === "official";
-  const usesManagedOAuth =
-    activePreset?.requiresOAuth === true ||
-    isOAuthProviderType(activeProviderType);
-  const effectiveMode: "direct" | "proxy" = usesManagedOAuth ? "proxy" : mode;
+  const effectiveMode: "direct" | "proxy" = mode;
   const needsModelMapping = effectiveMode === "proxy";
   const routes = needsModelMapping ? proxyRoutes : directRoutes;
   const setRoutes = needsModelMapping ? setProxyRoutes : setDirectRoutes;
@@ -435,10 +390,7 @@ export function ClaudeDesktopProviderForm({
     setApiKeyField(preset.apiKeyField ?? "ANTHROPIC_AUTH_TOKEN");
     setApiFormat(preset.apiFormat ?? "anthropic");
 
-    const presetMode =
-      preset.requiresOAuth === true || isOAuthProviderType(preset.providerType)
-        ? "proxy"
-        : preset.mode;
+    const presetMode = preset.mode;
     setMode(presetMode);
     setDirectRoutes(
       presetMode === "direct" && preset.modelRoutes
@@ -497,8 +449,6 @@ export function ClaudeDesktopProviderForm({
       category: entry.preset.category,
       isPartner: entry.preset.isPartner,
       partnerPromotionKey: entry.preset.partnerPromotionKey,
-      providerType: entry.preset.providerType,
-      requiresOAuth: entry.preset.requiresOAuth,
     });
     applyDesktopPreset(entry.preset);
   };
@@ -510,7 +460,6 @@ export function ClaudeDesktopProviderForm({
   };
 
   const handleModelMappingChange = (checked: boolean) => {
-    if (usesManagedOAuth) return;
     setMode(checked ? "proxy" : "direct");
     if (checked) {
       // 切到 proxy：只恢复/初始化映射模式自己的固定四档，不复用直连模型列表。
@@ -547,100 +496,7 @@ export function ClaudeDesktopProviderForm({
     setProxyRoutes(normalizeProxyRows(defaultProxyRouteRows));
   }, [defaultProxyRouteRows, effectiveMode, proxyRoutes.length]);
 
-  // 托管 OAuth 供应商没有地址和 Key，模型列表走各自账号的接口（与 Claude Code 表单一致）。
-  // 换账号或换供应商（含切回普通供应商）后旧列表作废，在途请求的结果也丢弃。
-  const managedModelsRequestRef = useRef(0);
-  useEffect(() => {
-    managedModelsRequestRef.current += 1;
-    setFetchedModels([]);
-    setIsFetchingModels(false);
-  }, [
-    usesManagedOAuth,
-    activeProviderType,
-    selectedGitHubAccountId,
-    selectedCodexAccountId,
-    selectedXaiAccountId,
-  ]);
-
-  const handleFetchManagedModels = async () => {
-    let request: Promise<FetchedModel[]>;
-    if (activeProviderType === "github_copilot") {
-      if (!isCopilotAuthenticated) {
-        toast.error(
-          t("copilot.loginRequired", {
-            defaultValue: "请先登录 GitHub Copilot",
-          }),
-        );
-        return;
-      }
-      request = (
-        selectedGitHubAccountId
-          ? copilotGetModelsForAccount(selectedGitHubAccountId)
-          : copilotGetModels()
-      ).then((models) =>
-        models.map((m) => ({ id: m.id, ownedBy: m.vendor || null })),
-      );
-    } else if (activeProviderType === "codex_oauth") {
-      if (!isCodexOauthAuthenticated) {
-        toast.error(
-          t("codexOauth.loginRequired", {
-            defaultValue: "请先登录 ChatGPT 账号",
-          }),
-        );
-        return;
-      }
-      request = fetchCodexOauthModels(selectedCodexAccountId);
-    } else if (activeProviderType === "xai_oauth") {
-      if (!isXaiOauthAuthenticated) {
-        toast.error(
-          t("xaiOauth.loginRequired", {
-            defaultValue: "请先登录 xAI 账号",
-          }),
-        );
-        return;
-      }
-      request = fetchXaiOauthModels(selectedXaiAccountId);
-    } else {
-      return;
-    }
-
-    const requestId = managedModelsRequestRef.current + 1;
-    managedModelsRequestRef.current = requestId;
-    setIsFetchingModels(true);
-    try {
-      const models = await request;
-      if (managedModelsRequestRef.current !== requestId) return;
-      setFetchedModels(models);
-      toast.success(
-        t("providerForm.fetchModelsSuccess", {
-          count: models.length,
-          defaultValue: `已获取 ${models.length} 个模型`,
-        }),
-      );
-    } catch (error) {
-      if (managedModelsRequestRef.current !== requestId) return;
-      console.warn("[ClaudeDesktop] Failed to fetch managed models:", error);
-      if (activeProviderType === "github_copilot") {
-        toast.error(
-          t("copilot.loadModelsFailed", {
-            defaultValue: "加载 Copilot 模型列表失败",
-          }),
-        );
-      } else {
-        showFetchModelsError(error, t);
-      }
-    } finally {
-      if (managedModelsRequestRef.current === requestId) {
-        setIsFetchingModels(false);
-      }
-    }
-  };
-
   const handleFetchModels = async () => {
-    if (usesManagedOAuth) {
-      await handleFetchManagedModels();
-      return;
-    }
     if (!baseUrl.trim() || !apiKey.trim()) {
       showFetchModelsError(null, t, {
         hasBaseUrl: Boolean(baseUrl.trim()),
@@ -702,7 +558,7 @@ export function ClaudeDesktopProviderForm({
       });
       return;
     }
-    if (!baseUrl.trim() && !usesManagedOAuth) {
+    if (!baseUrl.trim()) {
       toast.error(
         t("providerForm.fetchModelsNeedEndpoint", {
           defaultValue: "请先填写接口地址",
@@ -710,84 +566,7 @@ export function ClaudeDesktopProviderForm({
       );
       return;
     }
-    const selectedAccountExists = (
-      accountId: string | null,
-      accounts: Array<{ id: string }>,
-    ) =>
-      accountId === null ||
-      accounts.some((account) => account.id === accountId);
-    const selectedCodexAccountIsUsable = (accountId: string | null) => {
-      const effectiveAccountId =
-        accountId ??
-        codexOauthDefaultAccountId ??
-        codexOauthAccounts.find((account) => account.is_default)?.id ??
-        codexOauthAccounts[0]?.id;
-      return (
-        !!effectiveAccountId &&
-        codexOauthAccounts.some(
-          (account) =>
-            account.id === effectiveAccountId && !account.reauth_required,
-        )
-      );
-    };
-    const selectedXaiAccountIsUsable = (accountId: string | null) =>
-      accountId === null ||
-      xaiOauthAccounts.some(
-        (account) => account.id === accountId && !account.requires_reauth,
-      );
-    const managedAuthState =
-      activeProviderType === "github_copilot"
-        ? {
-            authenticated: isCopilotAuthenticated,
-            accountId: selectedGitHubAccountId,
-            accounts: copilotAccounts,
-            loginMessage: t("copilot.loginRequired", {
-              defaultValue: "请先登录 GitHub Copilot",
-            }),
-          }
-        : activeProviderType === "codex_oauth"
-          ? {
-              authenticated: isCodexOauthAuthenticated,
-              accountId: selectedCodexAccountId,
-              accounts: codexOauthAccounts,
-              loginMessage: t("codexOauth.loginRequired", {
-                defaultValue: "请先登录 ChatGPT 账号",
-              }),
-            }
-          : activeProviderType === "xai_oauth"
-            ? {
-                authenticated: isXaiOauthAuthenticated,
-                accountId: selectedXaiAccountId,
-                accounts: xaiOauthAccounts,
-                loginMessage: t("xaiOauth.loginRequired", {
-                  defaultValue: "请先登录 xAI 账号",
-                }),
-              }
-            : null;
-    if (managedAuthState && !managedAuthState.authenticated) {
-      toast.error(managedAuthState.loginMessage);
-      return;
-    }
-    const selectedManagedAccountIsUsable =
-      activeProviderType === "codex_oauth"
-        ? selectedCodexAccountIsUsable(selectedCodexAccountId)
-        : activeProviderType === "xai_oauth"
-          ? selectedXaiAccountIsUsable(selectedXaiAccountId)
-          : managedAuthState
-            ? selectedAccountExists(
-                managedAuthState.accountId,
-                managedAuthState.accounts,
-              )
-            : true;
-    if (managedAuthState && !selectedManagedAccountIsUsable) {
-      toast.error(
-        t("managedAuth.selectedAccountUnavailable", {
-          defaultValue: "已绑定账号不存在或需要重新登录，请重新选择账号",
-        }),
-      );
-      return;
-    }
-    if (!usesManagedOAuth && !apiKey.trim()) {
+    if (!apiKey.trim()) {
       toast.error(
         t("providerForm.fetchModelsNeedApiKey", {
           defaultValue: "请先填写 API Key",
@@ -850,16 +629,11 @@ export function ClaudeDesktopProviderForm({
     const env = clonePlainRecord(settingsConfig.env);
     delete env.ANTHROPIC_AUTH_TOKEN;
     delete env.ANTHROPIC_API_KEY;
-    settingsConfig.env = usesManagedOAuth
-      ? {
-          ...env,
-          ANTHROPIC_BASE_URL: baseUrl.trim().replace(/\/+$/, ""),
-        }
-      : {
-          ...env,
-          ANTHROPIC_BASE_URL: baseUrl.trim().replace(/\/+$/, ""),
-          [apiKeyField]: apiKey.trim(),
-        };
+    settingsConfig.env = {
+      ...env,
+      ANTHROPIC_BASE_URL: baseUrl.trim().replace(/\/+$/, ""),
+      [apiKeyField]: apiKey.trim(),
+    };
 
     const routeMap = routeEntries.reduce<
       Record<string, ClaudeDesktopModelRoute>
@@ -878,38 +652,10 @@ export function ClaudeDesktopProviderForm({
     const meta: ProviderMeta = {
       ...(initialData?.meta ?? {}),
       claudeDesktopMode: effectiveMode,
-      apiFormat:
-        activeProviderType === "xai_oauth"
-          ? "openai_responses"
-          : effectiveMode === "proxy"
-            ? apiFormat
-            : "anthropic",
+      apiFormat: effectiveMode === "proxy" ? apiFormat : "anthropic",
     };
 
     meta.claudeDesktopModelRoutes = routeMap;
-    meta.providerType = activeProviderType;
-    meta.authBinding =
-      activeProviderType === "github_copilot"
-        ? {
-            source: "managed_account",
-            authProvider: "github_copilot",
-            accountId: selectedGitHubAccountId ?? undefined,
-          }
-        : activeProviderType === "codex_oauth"
-          ? {
-              source: "managed_account",
-              authProvider: "codex_oauth",
-              accountId: selectedCodexAccountId ?? undefined,
-            }
-          : activeProviderType === "xai_oauth"
-            ? {
-                source: "managed_account",
-                authProvider: "xai_oauth",
-                accountId: selectedXaiAccountId ?? undefined,
-              }
-            : undefined;
-    meta.codexFastMode =
-      activeProviderType === "codex_oauth" ? codexFastMode : undefined;
 
     delete meta.endpointAutoSelect;
     delete meta.isFullUrl;
@@ -988,51 +734,16 @@ export function ClaudeDesktopProviderForm({
 
         {!isOfficial && (
           <>
-            {usesManagedOAuth ? (
-              <div className="rounded-lg border border-border bg-subtle p-3">
-                {activeProviderType === "github_copilot" ? (
-                  <CopilotAuthSection
-                    mode="select"
-                    selectedAccountId={selectedGitHubAccountId}
-                    onAccountSelect={setSelectedGitHubAccountId}
-                    onManageAccounts={
-                      onManageAuthAccounts
-                        ? () => onManageAuthAccounts("github_copilot")
-                        : undefined
-                    }
-                  />
-                ) : activeProviderType === "codex_oauth" ? (
-                  <CodexOAuthSection
-                    mode="select"
-                    selectedAccountId={selectedCodexAccountId}
-                    onAccountSelect={setSelectedCodexAccountId}
-                    onManageAccounts={
-                      onManageAuthAccounts
-                        ? () => onManageAuthAccounts("codex_oauth")
-                        : undefined
-                    }
-                    fastModeEnabled={codexFastMode}
-                    onFastModeChange={setCodexFastMode}
-                  />
-                ) : (
-                  <XaiOAuthSection
-                    selectedAccountId={selectedXaiAccountId}
-                    onAccountSelect={setSelectedXaiAccountId}
-                  />
-                )}
-              </div>
-            ) : (
-              <ApiKeySection
-                value={apiKey}
-                onChange={setApiKey}
-                category={apiKeyLinkCategory}
-                required
-                shouldShowLink={shouldShowApiKeyLink}
-                websiteUrl={apiKeyLinkWebsiteUrl}
-                isPartner={apiKeyLinkIsPartner}
-                partnerPromotionKey={apiKeyLinkPromotionKey}
-              />
-            )}
+            <ApiKeySection
+              value={apiKey}
+              onChange={setApiKey}
+              category={apiKeyLinkCategory}
+              required
+              shouldShowLink={shouldShowApiKeyLink}
+              websiteUrl={apiKeyLinkWebsiteUrl}
+              isPartner={apiKeyLinkIsPartner}
+              partnerPromotionKey={apiKeyLinkPromotionKey}
+            />
 
             <EndpointField
               id="baseUrl"
@@ -1081,7 +792,6 @@ export function ClaudeDesktopProviderForm({
                     onValueChange={(value) =>
                       handleModelMappingChange(value === "proxy")
                     }
-                    disabled={usesManagedOAuth}
                   >
                     <SelectTrigger
                       id="claude-desktop-model-mode"
@@ -1110,49 +820,47 @@ export function ClaudeDesktopProviderForm({
 
               {needsModelMapping && (
                 <div className="space-y-4 border-t border-border pt-4">
-                  {activeProviderType !== "xai_oauth" && (
-                    <div className="space-y-2">
-                      <Label>
-                        {t("providerForm.apiFormat", {
-                          defaultValue: "上游格式",
-                        })}
-                      </Label>
-                      <Select
-                        value={apiFormat}
-                        onValueChange={(value) =>
-                          setApiFormat(value as ClaudeApiFormat)
-                        }
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="anthropic">
-                            {t("providerForm.apiFormatAnthropic", {
-                              defaultValue: "Anthropic Messages (原生)",
-                            })}
-                          </SelectItem>
-                          <SelectItem value="openai_chat">
-                            {t("providerForm.apiFormatOpenAIChat", {
-                              defaultValue:
-                                "OpenAI Chat Completions (需开启路由)",
-                            })}
-                          </SelectItem>
-                          <SelectItem value="openai_responses">
-                            {t("providerForm.apiFormatOpenAIResponses", {
-                              defaultValue: "OpenAI Responses API (需开启路由)",
-                            })}
-                          </SelectItem>
-                          <SelectItem value="gemini_native">
-                            {t("providerForm.apiFormatGeminiNative", {
-                              defaultValue:
-                                "Gemini Native generateContent (需开启路由)",
-                            })}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <Label>
+                      {t("providerForm.apiFormat", {
+                        defaultValue: "上游格式",
+                      })}
+                    </Label>
+                    <Select
+                      value={apiFormat}
+                      onValueChange={(value) =>
+                        setApiFormat(value as ClaudeApiFormat)
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="anthropic">
+                          {t("providerForm.apiFormatAnthropic", {
+                            defaultValue: "Anthropic Messages (原生)",
+                          })}
+                        </SelectItem>
+                        <SelectItem value="openai_chat">
+                          {t("providerForm.apiFormatOpenAIChat", {
+                            defaultValue:
+                              "OpenAI Chat Completions (需开启路由)",
+                          })}
+                        </SelectItem>
+                        <SelectItem value="openai_responses">
+                          {t("providerForm.apiFormatOpenAIResponses", {
+                            defaultValue: "OpenAI Responses API (需开启路由)",
+                          })}
+                        </SelectItem>
+                        <SelectItem value="gemini_native">
+                          {t("providerForm.apiFormatGeminiNative", {
+                            defaultValue:
+                              "Gemini Native generateContent (需开启路由)",
+                          })}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   <div className="space-y-3">
                     <div className="space-y-1 border-t border-border pt-4">

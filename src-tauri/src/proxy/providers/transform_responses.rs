@@ -370,10 +370,7 @@ pub(crate) fn anthropic_web_search_tool_name(body: &Value) -> Option<&str> {
         .filter(|name| !name.is_empty())
 }
 
-fn anthropic_web_search_to_responses(
-    tool: &Value,
-    is_codex_oauth: bool,
-) -> Result<(Value, Option<u64>), ProxyError> {
+fn anthropic_web_search_to_responses(tool: &Value) -> Result<(Value, Option<u64>), ProxyError> {
     validate_anthropic_web_search_direct_mode(tool)?;
 
     let blocked_domains = tool
@@ -398,13 +395,6 @@ fn anthropic_web_search_to_responses(
         })?),
     };
     let mut response_tool = json!({"type": "web_search"});
-    if is_codex_oauth {
-        // `external_web_access` is a private ChatGPT Codex backend switch. It is
-        // not part of the standard Responses web-search schema, and strict
-        // API-key-compatible gateways reject the unknown member.
-        response_tool["external_web_access"] = json!(true);
-    }
-
     if let Some(allowed_domains) = tool
         .get("allowed_domains")
         .and_then(Value::as_array)
@@ -1767,17 +1757,7 @@ fn responses_web_search_call_from_anthropic_blocks(
 /// Anthropic 请求 → OpenAI Responses 请求
 ///
 /// `cache_key`: optional prompt_cache_key to inject for improved cache routing
-/// `is_codex_oauth`: 当目标后端是 ChatGPT Plus/Pro 反代 (`chatgpt.com/backend-api/codex`) 时为 true。
-/// 该后端强制要求 `store: false`，并要求 `include` 包含 `reasoning.encrypted_content`
-/// 以便在无服务端状态下保持多轮 reasoning 上下文。
-/// `codex_fast_mode`: 仅在 `is_codex_oauth` 为 true 时生效，控制是否注入
-/// `service_tier = "priority"`。
-pub fn anthropic_to_responses(
-    body: Value,
-    cache_key: Option<&str>,
-    is_codex_oauth: bool,
-    codex_fast_mode: bool,
-) -> Result<Value, ProxyError> {
+pub fn anthropic_to_responses(body: Value, cache_key: Option<&str>) -> Result<Value, ProxyError> {
     let mut result = json!({});
 
     // NOTE: 模型映射由上游统一处理（proxy::model_mapper），格式转换层只做结构转换。
@@ -1850,29 +1830,6 @@ pub fn anthropic_to_responses(
 
     // 转换 tools (过滤 BatchTool)
     //
-    // The Codex OAuth request contract accepts only a string `tool_choice`.
-    // When Anthropic forces one hosted WebSearch tool, `"required"` is exact
-    // only if no unrelated tools remain in the outbound list. Resolve the
-    // selected tool by its declared name so future versioned names keep working.
-    let forced_hosted_web_search_name = if is_codex_oauth {
-        body.get("tool_choice")
-            .and_then(Value::as_object)
-            .filter(|choice| choice.get("type").and_then(Value::as_str) == Some("tool"))
-            .and_then(|choice| choice.get("name"))
-            .and_then(Value::as_str)
-            .filter(|selected_name| {
-                body.get("tools")
-                    .and_then(Value::as_array)
-                    .is_some_and(|tools| {
-                        tools.iter().any(|tool| {
-                            is_anthropic_web_search_tool(tool)
-                                && tool.get("name").and_then(Value::as_str) == Some(*selected_name)
-                        })
-                    })
-            })
-    } else {
-        None
-    };
     let mut hosted_web_search_names = HashSet::new();
     let mut hosted_web_search_max_uses: Option<u64> = None;
     if let Some(tools) = body.get("tools").and_then(|t| t.as_array()) {
@@ -1887,11 +1844,7 @@ pub fn anthropic_to_responses(
                     .and_then(Value::as_str)
                     .unwrap_or("web_search");
                 hosted_web_search_names.insert(name.to_string());
-                if forced_hosted_web_search_name.is_some_and(|selected| selected != name) {
-                    continue;
-                }
-                let (response_tool, max_uses) =
-                    anthropic_web_search_to_responses(tool, is_codex_oauth)?;
+                let (response_tool, max_uses) = anthropic_web_search_to_responses(tool)?;
                 if let Some(max_uses) = max_uses {
                     hosted_web_search_max_uses = Some(
                         hosted_web_search_max_uses
@@ -1900,9 +1853,6 @@ pub fn anthropic_to_responses(
                 }
                 response_tools.push(response_tool);
             } else {
-                if forced_hosted_web_search_name.is_some() {
-                    continue;
-                }
                 let mut response_tool = json!({
                     "type": "function",
                     // Anthropic 工具 schema 允许可选参数（required 是任意子集），而
@@ -1931,48 +1881,21 @@ pub fn anthropic_to_responses(
     }
 
     if let Some(max_uses) = hosted_web_search_max_uses {
-        if is_codex_oauth {
-            // Codex rejects max_tool_calls. Add a soft instruction cap here;
-            // downstream converters count web_search_call items and cut off the
-            // response on excess calls, forced or not. This response-side bound
-            // cannot guarantee that excess searches have not executed upstream.
-            let existing = result
-                .get("instructions")
-                .and_then(Value::as_str)
-                .unwrap_or("");
-            let cap_instruction = format!(
-                "You must perform no more than {max_uses} web search calls in this response."
-            );
-            result["instructions"] = json!(if existing.is_empty() {
-                cap_instruction
-            } else {
-                format!("{existing}\n\n{cap_instruction}")
-            });
-        } else {
-            // Responses exposes one aggregate cap for built-in tool calls.
-            // Hosted WebSearch is the only built-in tool produced by this
-            // transform, so this exactly enforces Anthropic's request limit.
-            result["max_tool_calls"] = json!(max_uses);
-        }
+        // Responses exposes one aggregate cap for built-in tool calls.
+        // Hosted WebSearch is the only built-in tool produced by this
+        // transform, so this exactly enforces Anthropic's request limit.
+        result["max_tool_calls"] = json!(max_uses);
     }
 
     if let Some(v) = body.get("tool_choice") {
-        result["tool_choice"] =
-            map_tool_choice_to_responses(v, &hosted_web_search_names, is_codex_oauth);
-        if is_codex_oauth {
-            if let Some(disable_parallel) =
-                v.get("disable_parallel_tool_use").and_then(Value::as_bool)
-            {
-                result["parallel_tool_calls"] = json!(!disable_parallel);
-            }
-        }
+        result["tool_choice"] = map_tool_choice_to_responses(v, &hosted_web_search_names);
     }
 
     const WEB_SEARCH_SOURCES_MARKER: &str = "web_search_call.action.sources";
     // OpenAI otherwise returns citations only on the final message, without a
     // search-call ID. Request per-call sources so multiple hosted searches can
     // be paired with the corresponding Anthropic result blocks.
-    if !hosted_web_search_names.is_empty() && !is_codex_oauth {
+    if !hosted_web_search_names.is_empty() {
         result["include"] = json!([WEB_SEARCH_SOURCES_MARKER]);
     }
 
@@ -1981,80 +1904,12 @@ pub fn anthropic_to_responses(
         result["prompt_cache_key"] = json!(key);
     }
 
-    // Codex OAuth (ChatGPT Plus/Pro 反代) 特殊协议约束：
-    // 整体依据：OpenAI 官方 codex-rs 的 `ResponsesApiRequest` 结构体
-    // (codex-rs/codex-api/src/common.rs) 是 ChatGPT 反代后端的协议契约。
-    // 任何不在该结构体里的字段都可能被 ChatGPT 后端以
-    // "Unsupported parameter: ..." 400 拒绝；任何在结构体里的必填字段
-    // 都需要在请求体里出现。
-    //
-    // 字段处理：
-    // - store: 必须显式为 false（ChatGPT 消费级后端不允许服务端持久化）
-    // - include: 必须包含 "reasoning.encrypted_content"，
-    //   否则多轮 reasoning 中间态会丢失（无服务端状态 + 无加密回传 = 上下文断链）
-    // - max_output_tokens / temperature / top_p: 必须删除
-    //   （codex-rs 结构体根本没有这三个字段，OpenAI 自己的客户端不发它们）
-    // - instructions / tools / parallel_tool_calls: 必填字段，缺则兜底默认值
-    //   （cc-switch 的 transform 当前是"条件写入"，可能产生缺失）
-    // - service_tier: 仅在 FAST mode 开启时写入 "priority"
-    //   （与 OpenAI 官方 codex-rs 当前请求结构保持一致）
-    // - stream: 必须永远 true（codex-rs 硬编码 true，且 cc-switch 的
-    //   SSE 解析层只处理流式响应，强制覆盖避免客户端误传 false）
-    if is_codex_oauth {
-        result["store"] = json!(false);
-        if codex_fast_mode {
-            result["service_tier"] = json!("priority");
-        }
-
-        const REASONING_MARKER: &str = "reasoning.encrypted_content";
-        let mut includes: Vec<Value> = body
-            .get("include")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
-        if !includes
-            .iter()
-            .any(|v| v.as_str() == Some(REASONING_MARKER))
-        {
-            includes.push(json!(REASONING_MARKER));
-        }
-        if !hosted_web_search_names.is_empty()
-            && !includes
-                .iter()
-                .any(|v| v.as_str() == Some(WEB_SEARCH_SOURCES_MARKER))
-        {
-            includes.push(json!(WEB_SEARCH_SOURCES_MARKER));
-        }
-        result["include"] = json!(includes);
-
-        if let Some(obj) = result.as_object_mut() {
-            // —— 删除 ChatGPT 反代不接受的字段 ——
-            obj.remove("max_output_tokens");
-            obj.remove("temperature");
-            obj.remove("top_p");
-
-            // —— 兜底必填字段（or_insert：客户端送了什么就保留，否则注入默认值）——
-            obj.entry("instructions".to_string()).or_insert(json!(""));
-            obj.entry("tools".to_string()).or_insert(json!([]));
-            // Anthropic 默认允许并行工具调用。优先保留上方已转换的显式设置，
-            // 否则允许支持该能力的 Codex 模型在同一响应中批量调用独立工具。
-            obj.entry("parallel_tool_calls".to_string())
-                .or_insert(json!(true));
-
-            // —— 强制覆盖 stream = true ——
-            // 即便客户端误传 stream:false 也要覆盖，因为 codex-rs 永远 true，
-            // 且 cc-switch SSE 解析层只支持流式响应。
-            obj.insert("stream".to_string(), json!(true));
-        }
-    }
-
     Ok(result)
 }
 
 fn map_tool_choice_to_responses(
     tool_choice: &Value,
     hosted_web_search_names: &HashSet<String>,
-    is_codex_oauth: bool,
 ) -> Value {
     match tool_choice {
         Value::String(_) => tool_choice.clone(),
@@ -2067,15 +1922,7 @@ fn map_tool_choice_to_responses(
             Some("tool") => {
                 let name = obj.get("name").and_then(|n| n.as_str()).unwrap_or("");
                 if hosted_web_search_names.contains(name) {
-                    // The ChatGPT Codex backend's canonical request schema accepts a
-                    // string tool_choice. The request transform filters the outbound
-                    // list to this dynamically named hosted tool, so `required`
-                    // preserves the forced-tool behavior.
-                    if is_codex_oauth {
-                        json!("required")
-                    } else {
-                        json!({"type": "web_search"})
-                    }
+                    json!({"type": "web_search"})
                 } else {
                     json!({
                         "type": "function",
@@ -3209,7 +3056,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["model"], "gpt-4o");
         assert_eq!(result["max_output_tokens"], 1024);
         assert_eq!(result["input"][0]["role"], "user");
@@ -3228,7 +3075,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["instructions"], "You are a helpful assistant.");
         // system should not appear in input
         assert_eq!(result["input"].as_array().unwrap().len(), 1);
@@ -3243,7 +3090,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["instructions"], "You are a helpful assistant.");
     }
 
@@ -3256,7 +3103,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["instructions"], "You are a helpful assistant.");
     }
 
@@ -3269,7 +3116,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(
             result["instructions"],
             "Keep this literal:\nx-anthropic-billing-header: example"
@@ -3288,7 +3135,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["instructions"], "Part 1\n\nPart 2");
     }
 
@@ -3304,7 +3151,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["instructions"], "Stable prompt");
     }
 
@@ -3320,7 +3167,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(
             result["instructions"],
             "Stable prompt part 1\n\nStable prompt part 2"
@@ -3340,7 +3187,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["tools"][0]["type"], "function");
         // 省略 strict 会被 Responses 后端按 true 严格化，可选参数被强制输出（#7713）
         assert_eq!(result["tools"][0]["strict"], json!(false));
@@ -3378,7 +3225,7 @@ mod tests {
             }]
         });
 
-        let plain = anthropic_to_responses(input.clone(), None, false, false).unwrap();
+        let plain = anthropic_to_responses(input.clone(), None).unwrap();
         assert_eq!(plain["tools"][0]["strict"], json!(false));
         // required 保持为原有子集，strict 语义交由后端保留
         assert_eq!(
@@ -3386,8 +3233,7 @@ mod tests {
             json!(["description", "prompt"])
         );
 
-        // 同一转换分支也服务 Codex OAuth 后端
-        let oauth = anthropic_to_responses(input, None, true, false).unwrap();
+        let oauth = anthropic_to_responses(input, None).unwrap();
         assert_eq!(oauth["tools"][0]["strict"], json!(false));
         assert_eq!(
             oauth["tools"][0]["parameters"]["required"],
@@ -3408,56 +3254,13 @@ mod tests {
             ]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let tools = result["tools"].as_array().unwrap();
         assert_eq!(tools.len(), 2);
         // 缺 description：省略字段而不是序列化成 null（严格上游会 400）
         assert!(tools[0].get("description").is_none());
         assert!(tools[0].get("parameters").is_some());
         assert_eq!(tools[1]["description"], json!("Has one"));
-    }
-
-    #[test]
-    fn test_anthropic_hosted_web_search_maps_newer_direct_version_to_codex_tool() {
-        let input = json!({
-            "model": "gpt-5.6",
-            "messages": [{"role": "user", "content": "Search Rust docs"}],
-            "tools": [{
-                "type": "web_search_20260318",
-                "name": "web_search_next",
-                "allowed_callers": ["direct"],
-                "max_uses": 8,
-                "allowed_domains": ["rust-lang.org"],
-                "blocked_domains": []
-            }],
-            "tool_choice": {"type": "tool", "name": "web_search_next"}
-        });
-
-        assert_eq!(
-            anthropic_web_search_tool_name(&input),
-            Some("web_search_next")
-        );
-        let result = anthropic_to_responses(input, None, true, false).unwrap();
-        assert_eq!(
-            result["tools"][0],
-            json!({
-                "type": "web_search",
-                "external_web_access": true,
-                "filters": {"allowed_domains": ["rust-lang.org"]}
-            })
-        );
-        assert_eq!(result["tool_choice"], "required");
-        assert!(result["instructions"]
-            .as_str()
-            .unwrap()
-            .contains("no more than 8 web search calls"));
-        assert_eq!(
-            result["include"],
-            json!([
-                "reasoning.encrypted_content",
-                "web_search_call.action.sources"
-            ])
-        );
     }
 
     #[test]
@@ -3469,7 +3272,7 @@ mod tests {
             "tool_choice": {"type": "tool", "name": "web_search"}
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["tool_choice"], json!({"type": "web_search"}));
         assert_eq!(result["include"], json!(["web_search_call.action.sources"]));
         assert!(result["tools"][0].get("external_web_access").is_none());
@@ -3487,101 +3290,8 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["max_tool_calls"], 3);
-    }
-
-    #[test]
-    fn test_codex_forced_hosted_web_search_max_uses_is_enforced_locally() {
-        let input = json!({
-            "model": "gpt-5.6",
-            "messages": [{"role": "user", "content": "Search"}],
-            "tools": [{
-                "type": "web_search_20250305",
-                "name": "web_search",
-                "max_uses": 3
-            }],
-            "tool_choice": {"type": "tool", "name": "web_search"}
-        });
-
-        let result = anthropic_to_responses(input, None, true, false).unwrap();
-        assert!(result.get("max_tool_calls").is_none());
-        assert!(result["instructions"]
-            .as_str()
-            .unwrap()
-            .contains("no more than 3 web search calls"));
-    }
-
-    #[test]
-    fn test_codex_auto_hosted_web_search_max_uses_enforced_via_instructions() {
-        let input = json!({
-            "model": "gpt-5.6",
-            "messages": [{"role": "user", "content": "Search"}],
-            "tools": [
-                {
-                    "type": "web_search_20250305",
-                    "name": "web_search",
-                    "max_uses": 3
-                },
-                {
-                    "name": "get_weather",
-                    "description": "A client-side function",
-                    "input_schema": {"type": "object"}
-                }
-            ]
-        });
-
-        // An unforced hosted search must coexist with client-side tools.
-        let result = anthropic_to_responses(input, None, true, false).unwrap();
-        assert!(result.get("max_tool_calls").is_none());
-        assert!(result["instructions"]
-            .as_str()
-            .unwrap()
-            .contains("no more than 3 web search calls"));
-        // Unrelated tools are preserved when the hosted tool is not forced.
-        let tools = result["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 2);
-        assert!(tools
-            .iter()
-            .any(|tool| tool["type"] == "web_search" && tool["external_web_access"] == true));
-        assert!(tools
-            .iter()
-            .any(|tool| tool["type"] == "function" && tool["name"] == "get_weather"));
-    }
-
-    #[test]
-    fn test_codex_forced_hosted_web_search_filters_unrelated_tools() {
-        let input = json!({
-            "model": "gpt-5.6",
-            "messages": [{"role": "user", "content": "Search"}],
-            "tools": [
-                {
-                    "type": "web_search_20250305",
-                    "name": "web_search_legacy"
-                },
-                {
-                    "type": "web_search_20260318",
-                    "name": "web_search_future",
-                    "allowed_callers": ["direct"]
-                },
-                {
-                    "name": "get_weather",
-                    "description": "A client-side function",
-                    "input_schema": {"type": "object"}
-                }
-            ],
-            "tool_choice": {"type": "tool", "name": "web_search_future"}
-        });
-
-        assert_eq!(
-            anthropic_web_search_tool_name(&input),
-            Some("web_search_future")
-        );
-        let result = anthropic_to_responses(input, None, true, false).unwrap();
-        assert_eq!(result["tool_choice"], "required");
-        assert_eq!(result["tools"].as_array().unwrap().len(), 1);
-        assert_eq!(result["tools"][0]["type"], "web_search");
-        assert_eq!(result["tools"][0]["external_web_access"], true);
     }
 
     #[test]
@@ -3635,7 +3345,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, true, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let replayed = result["input"].as_array().unwrap();
 
         assert_eq!(
@@ -3682,7 +3392,7 @@ mod tests {
             "tool_choice": {"type": "tool", "name": "web_search"}
         });
 
-        let result = anthropic_to_responses(input, None, true, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["tools"][0]["type"], "function");
         assert_eq!(result["tools"][0]["name"], "web_search");
         assert_eq!(
@@ -3703,7 +3413,7 @@ mod tests {
             }]
         });
 
-        let error = anthropic_to_responses(input, None, true, false).unwrap_err();
+        let error = anthropic_to_responses(input, None).unwrap_err();
         assert!(error.to_string().contains("blocked_domains"));
     }
 
@@ -3716,7 +3426,7 @@ mod tests {
                 "tools": [{"type": tool_type, "name": "web_search"}]
             });
 
-            let error = anthropic_to_responses(input, None, true, false).unwrap_err();
+            let error = anthropic_to_responses(input, None).unwrap_err();
             assert!(error.to_string().contains("defaults to code execution"));
             assert!(error.to_string().contains("[\"direct\"]"));
         }
@@ -3739,7 +3449,7 @@ mod tests {
                 }]
             });
 
-            let error = anthropic_to_responses(input, None, true, false).unwrap_err();
+            let error = anthropic_to_responses(input, None).unwrap_err();
             assert!(error.to_string().contains("allowed_callers"));
             assert!(error.to_string().contains("exactly"));
         }
@@ -3759,7 +3469,7 @@ mod tests {
                 }]
             });
 
-            let error = anthropic_to_responses(input, None, true, false).unwrap_err();
+            let error = anthropic_to_responses(input, None).unwrap_err();
             assert!(error.to_string().contains("response_inclusion"));
         }
     }
@@ -3780,7 +3490,7 @@ mod tests {
             anthropic_web_search_tool_name(&input),
             Some("web_search_future")
         );
-        let error = anthropic_to_responses(input, None, true, false).unwrap_err();
+        let error = anthropic_to_responses(input, None).unwrap_err();
         assert!(error.to_string().contains("version 'web_search_20991231'"));
         assert!(error.to_string().contains("not supported"));
     }
@@ -3798,7 +3508,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let parameters = &result["tools"][0]["parameters"];
         assert_eq!(parameters["type"], json!("object"));
         assert_eq!(
@@ -3816,7 +3526,7 @@ mod tests {
             "tools": [{"name": "do_work", "input_schema": {}}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let parameters = &result["tools"][0]["parameters"];
         assert_eq!(parameters, &json!({"type": "object", "properties": {}}));
     }
@@ -3830,7 +3540,7 @@ mod tests {
             "tool_choice": {"type": "any"}
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["tool_choice"], "required");
     }
 
@@ -3843,7 +3553,7 @@ mod tests {
             "tool_choice": {"type": "tool", "name": "get_weather"}
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["tool_choice"]["type"], "function");
         assert_eq!(result["tool_choice"]["name"], "get_weather");
     }
@@ -3862,7 +3572,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let input_arr = result["input"].as_array().unwrap();
 
         // Should produce: assistant message (text) + function_call item
@@ -3892,7 +3602,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let input_arr = result["input"].as_array().unwrap();
 
         // Should produce: function_call_output item (lifted)
@@ -3918,7 +3628,7 @@ mod tests {
             }]}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let output = result["input"][0]["output"].as_array().unwrap();
         assert_eq!(output[0]["text"], TOOL_RESULT_ERROR_MARKER);
         assert_eq!(
@@ -3945,7 +3655,7 @@ mod tests {
             }]}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let output = result["input"][0]["output"].as_array().unwrap();
 
         assert_eq!(output[0]["type"], "input_text");
@@ -3982,7 +3692,7 @@ mod tests {
             }]}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let output = result["input"][0]["output"].as_array().unwrap();
         let image = output
             .iter()
@@ -4016,7 +3726,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let input_arr = result["input"].as_array().unwrap();
 
         // thinking should be discarded, only text remains
@@ -4039,7 +3749,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let content = result["input"][0]["content"].as_array().unwrap();
 
         assert_eq!(content[0]["type"], "input_text");
@@ -4057,7 +3767,7 @@ mod tests {
             ]}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         let content = result["input"][0]["content"].as_array().unwrap();
         assert_eq!(content[0]["type"], "input_image");
         assert_eq!(content[0]["image_url"], "https://example.com/a.png");
@@ -4747,8 +4457,6 @@ mod tests {
                 ]}]
             }),
             None,
-            true,
-            false,
         )
         .unwrap();
         assert_eq!(replay["input"][0], original);
@@ -4788,8 +4496,6 @@ mod tests {
                 ]
             }),
             None,
-            true,
-            false,
         )
         .unwrap();
         let reasoning_items: Vec<&Value> = replay["input"]
@@ -4828,8 +4534,6 @@ mod tests {
                 ]
             }),
             None,
-            true,
-            false,
         )
         .unwrap();
 
@@ -4922,7 +4626,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["model"], "o3-mini");
     }
 
@@ -4934,7 +4638,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, Some("my-provider-id"), false, false).unwrap();
+        let result = anthropic_to_responses(input, Some("my-provider-id")).unwrap();
         assert_eq!(result["prompt_cache_key"], "my-provider-id");
     }
 
@@ -4952,7 +4656,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert!(result["tools"][0].get("cache_control").is_none());
     }
 
@@ -4969,7 +4673,7 @@ mod tests {
             }]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert!(result["input"][0]["content"][0]
             .get("cache_control")
             .is_none());
@@ -5035,7 +4739,7 @@ mod tests {
             "max_tokens": 4096,
             "messages": [{"role": "user", "content": "Hello"}]
         });
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["max_output_tokens"], 4096);
         assert!(result.get("max_completion_tokens").is_none());
     }
@@ -5050,7 +4754,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "xhigh");
     }
 
@@ -5073,7 +4777,7 @@ mod tests {
                 "messages": [{"role": "user", "content": "Hello"}]
             });
 
-            let result = anthropic_to_responses(input, None, false, false).unwrap();
+            let result = anthropic_to_responses(input, None).unwrap();
             assert_eq!(result["reasoning"]["effort"], "max", "model {model}");
         }
     }
@@ -5090,7 +4794,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "xhigh");
     }
 
@@ -5106,7 +4810,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "xhigh");
     }
 
@@ -5120,7 +4824,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "low");
     }
 
@@ -5134,7 +4838,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "low");
     }
 
@@ -5147,7 +4851,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "low");
     }
 
@@ -5160,7 +4864,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "medium");
     }
 
@@ -5173,7 +4877,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "high");
     }
 
@@ -5186,7 +4890,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert_eq!(result["reasoning"]["effort"], "xhigh");
     }
 
@@ -5199,41 +4903,21 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
         assert!(result.get("reasoning").is_none());
-    }
-
-    // ==================== Codex OAuth (ChatGPT 反代) 协议约束 ====================
-
-    #[test]
-    fn test_anthropic_to_responses_codex_oauth_sets_store_and_include() {
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "messages": [{"role": "user", "content": "Hello"}]
-        });
-
-        let result = anthropic_to_responses(input, None, true, true).unwrap();
-
-        // store 必须显式为 false（ChatGPT 后端拒绝 true）
-        assert_eq!(result["store"], json!(false));
-        assert_eq!(result["service_tier"], json!("priority"));
-
-        // include 必须包含 reasoning.encrypted_content（无服务端状态下保持多轮 reasoning）
-        assert_eq!(result["include"], json!(["reasoning.encrypted_content"]));
     }
 
     #[test]
     fn test_anthropic_to_responses_non_codex_omits_store_and_include() {
-        // 回归护栏：is_codex_oauth=false 时，行为必须与今日字节级一致
-        // —— 不写 store、不写 include，OpenRouter / Azure / OpenAI 付费 API 路径不受影响
+        // 回归护栏：普通 Responses 上游不写 store、不写 include，
+        // OpenRouter / Azure / OpenAI 付费 API 路径不受影响
         let input = json!({
             "model": "gpt-5-codex",
             "max_tokens": 1024,
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
 
         assert!(result.get("store").is_none());
         assert!(result.get("service_tier").is_none());
@@ -5241,73 +4925,8 @@ mod tests {
     }
 
     #[test]
-    fn test_anthropic_to_responses_codex_oauth_preserves_existing_include() {
-        // 客户端预置了 include：union 保留原有项 + 添加 marker，不重复
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "messages": [{"role": "user", "content": "Hello"}],
-            "include": ["something.else", "reasoning.encrypted_content"]
-        });
-
-        let result = anthropic_to_responses(input, None, true, true).unwrap();
-        let includes = result["include"]
-            .as_array()
-            .expect("include should be array");
-
-        // 原有项必须保留
-        assert!(includes
-            .iter()
-            .any(|v| v.as_str() == Some("something.else")));
-        // marker 必须存在
-        assert!(includes
-            .iter()
-            .any(|v| v.as_str() == Some("reasoning.encrypted_content")));
-        // 不重复：marker 只出现一次
-        let marker_count = includes
-            .iter()
-            .filter(|v| v.as_str() == Some("reasoning.encrypted_content"))
-            .count();
-        assert_eq!(marker_count, 1, "marker 不应被重复添加（idempotent 失败）");
-    }
-
-    #[test]
-    fn test_anthropic_to_responses_codex_oauth_fast_mode_can_be_disabled() {
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "messages": [{"role": "user", "content": "Hello"}]
-        });
-
-        let result = anthropic_to_responses(input, None, true, false).unwrap();
-
-        assert_eq!(result["store"], json!(false));
-        assert!(result.get("service_tier").is_none());
-        assert_eq!(result["include"], json!(["reasoning.encrypted_content"]));
-    }
-
-    #[test]
-    fn test_anthropic_to_responses_codex_oauth_strips_max_output_tokens() {
-        // ChatGPT Plus/Pro 反代不接受 max_output_tokens（OpenAI 官方 codex-rs 的
-        // ResponsesApiRequest 结构体里也没有这个字段），必须删除，否则服务端 400：
-        // "Unsupported parameter: max_output_tokens"
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "messages": [{"role": "user", "content": "Hello"}]
-        });
-
-        let result = anthropic_to_responses(input, None, true, true).unwrap();
-
-        assert!(
-            result.get("max_output_tokens").is_none(),
-            "Codex OAuth 路径必须删除 max_output_tokens"
-        );
-    }
-
-    #[test]
     fn test_anthropic_to_responses_non_codex_keeps_max_output_tokens() {
-        // 回归护栏：非 Codex OAuth 路径必须保留 max_output_tokens
+        // 回归护栏：普通 Responses 路径必须保留 max_output_tokens
         // —— OpenAI 付费 Responses API / Azure 等仍然依赖这个字段
         let input = json!({
             "model": "gpt-5-codex",
@@ -5315,7 +4934,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
 
         assert_eq!(result["max_output_tokens"], json!(1024));
     }
@@ -5331,7 +4950,7 @@ mod tests {
                 "max_tokens": budget,
                 "messages": [{"role": "user", "content": "ping"}]
             });
-            let result = anthropic_to_responses(input, None, false, false).unwrap();
+            let result = anthropic_to_responses(input, None).unwrap();
             assert_eq!(result["max_output_tokens"], json!(16));
         }
 
@@ -5342,7 +4961,7 @@ mod tests {
                 "max_tokens": budget,
                 "messages": [{"role": "user", "content": "ping"}]
             });
-            let result = anthropic_to_responses(input, None, false, false).unwrap();
+            let result = anthropic_to_responses(input, None).unwrap();
             assert_eq!(result["max_output_tokens"], json!(budget));
         }
 
@@ -5353,172 +4972,14 @@ mod tests {
                 "max_tokens": raw,
                 "messages": [{"role": "user", "content": "ping"}]
             });
-            let result = anthropic_to_responses(input, None, false, false).unwrap();
+            let result = anthropic_to_responses(input, None).unwrap();
             assert_eq!(result["max_output_tokens"], raw);
         }
     }
 
-    // ==================== 第二轮：P0 + P1 字段对齐 ====================
-
-    #[test]
-    fn test_codex_oauth_strips_temperature() {
-        // P0: ChatGPT 反代不接受 temperature
-        // 依据：OpenAI 官方 codex-rs 的 ResponsesApiRequest 结构体根本没有这个字段
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "temperature": 0.7,
-            "messages": [{"role": "user", "content": "Hello"}]
-        });
-
-        let result = anthropic_to_responses(input, None, true, true).unwrap();
-
-        assert!(
-            result.get("temperature").is_none(),
-            "Codex OAuth 路径必须删除 temperature"
-        );
-    }
-
-    #[test]
-    fn test_codex_oauth_strips_top_p() {
-        // P0: ChatGPT 反代不接受 top_p
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "top_p": 0.9,
-            "messages": [{"role": "user", "content": "Hello"}]
-        });
-
-        let result = anthropic_to_responses(input, None, true, true).unwrap();
-
-        assert!(
-            result.get("top_p").is_none(),
-            "Codex OAuth 路径必须删除 top_p"
-        );
-    }
-
-    #[test]
-    fn test_codex_oauth_defaults_required_fields_when_absent() {
-        // P1: 极简输入（无 system / 无 tools / 无 stream），断言四个必填字段都被注入默认值
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "messages": [{"role": "user", "content": "Hello"}]
-        });
-
-        let result = anthropic_to_responses(input, None, true, true).unwrap();
-
-        assert_eq!(
-            result["instructions"],
-            json!(""),
-            "instructions 缺失时应兜底为空字符串"
-        );
-        assert_eq!(result["tools"], json!([]), "tools 缺失时应兜底为空数组");
-        assert_eq!(
-            result["parallel_tool_calls"],
-            json!(true),
-            "parallel_tool_calls 应默认允许并行工具调用"
-        );
-        assert_eq!(result["stream"], json!(true), "stream 应被强制设为 true");
-    }
-
-    #[test]
-    fn test_codex_oauth_maps_anthropic_parallel_tool_choice() {
-        let enabled = anthropic_to_responses(
-            json!({
-                "model": "gpt-5.6-sol",
-                "tools": [{
-                    "name": "read_file",
-                    "input_schema": {"type": "object"}
-                }],
-                "tool_choice": {
-                    "type": "auto",
-                    "disable_parallel_tool_use": false
-                },
-                "messages": [{"role": "user", "content": "Read both files"}]
-            }),
-            None,
-            true,
-            true,
-        )
-        .unwrap();
-        assert_eq!(enabled["parallel_tool_calls"], json!(true));
-
-        let disabled = anthropic_to_responses(
-            json!({
-                "model": "gpt-5.6-sol",
-                "tools": [{
-                    "name": "read_file",
-                    "input_schema": {"type": "object"}
-                }],
-                "tool_choice": {
-                    "type": "auto",
-                    "disable_parallel_tool_use": true
-                },
-                "messages": [{"role": "user", "content": "Read one file"}]
-            }),
-            None,
-            true,
-            true,
-        )
-        .unwrap();
-        assert_eq!(disabled["parallel_tool_calls"], json!(false));
-    }
-
-    #[test]
-    fn test_codex_oauth_preserves_existing_instructions_and_tools() {
-        // P1: 客户端送了 system 和 tools，应保留原值，不被默认值覆盖
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "system": "You are a helpful assistant",
-            "tools": [{
-                "name": "get_weather",
-                "description": "Get weather",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {"city": {"type": "string"}}
-                }
-            }],
-            "messages": [{"role": "user", "content": "Hello"}]
-        });
-
-        let result = anthropic_to_responses(input, None, true, true).unwrap();
-
-        assert_eq!(
-            result["instructions"],
-            json!("You are a helpful assistant"),
-            "client 已送的 instructions 必须保留"
-        );
-
-        let tools = result["tools"].as_array().expect("tools 应为数组");
-        assert_eq!(tools.len(), 1, "client 已送的 tools 必须保留");
-        assert_eq!(tools[0]["name"], json!("get_weather"));
-    }
-
-    #[test]
-    fn test_codex_oauth_forces_stream_true_even_when_client_sends_false() {
-        // 即使客户端误传 stream:false，也要强制覆盖为 true
-        // 依据：cc-switch SSE 解析层只支持流式响应
-        let input = json!({
-            "model": "gpt-5-codex",
-            "max_tokens": 1024,
-            "stream": false,
-            "messages": [{"role": "user", "content": "Hello"}]
-        });
-
-        let result = anthropic_to_responses(input, None, true, true).unwrap();
-
-        assert_eq!(
-            result["stream"],
-            json!(true),
-            "Codex OAuth 路径下 stream 必须强制为 true"
-        );
-    }
-
     #[test]
     fn test_non_codex_keeps_temperature_and_top_p() {
-        // 回归护栏：非 Codex OAuth 路径必须保留 temperature/top_p
+        // 回归护栏：普通 Responses 路径必须保留 temperature/top_p
         // —— 防止 P0 删除逻辑误扩散到 OpenRouter / Azure / 付费 OpenAI 路径
         let input = json!({
             "model": "gpt-5-codex",
@@ -5528,7 +4989,7 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
 
         assert_eq!(result["temperature"], json!(0.7));
         assert_eq!(result["top_p"], json!(0.9));
@@ -5536,7 +4997,7 @@ mod tests {
 
     #[test]
     fn test_non_codex_does_not_inject_default_required_fields() {
-        // 回归护栏：非 Codex OAuth 路径不应被 P1 默认值污染
+        // 回归护栏：普通 Responses 路径不应被 P1 默认值污染
         // —— OpenRouter / Azure / 付费 OpenAI 等保持原有"条件写入"语义
         let input = json!({
             "model": "gpt-5-codex",
@@ -5548,24 +5009,24 @@ mod tests {
             "messages": [{"role": "user", "content": "Hello"}]
         });
 
-        let result = anthropic_to_responses(input, None, false, false).unwrap();
+        let result = anthropic_to_responses(input, None).unwrap();
 
         assert!(
             result.get("parallel_tool_calls").is_none(),
-            "非 Codex OAuth 路径不应注入 parallel_tool_calls"
+            "普通 Responses 路径不应注入 parallel_tool_calls"
         );
         assert!(
             result.get("stream").is_none(),
-            "非 Codex OAuth 路径不应注入 stream"
+            "普通 Responses 路径不应注入 stream"
         );
         // instructions 和 tools 因为客户端没送，所以不应出现
         assert!(
             result.get("instructions").is_none(),
-            "非 Codex OAuth 路径下 instructions 在客户端未送时不应被注入"
+            "普通 Responses 路径下 instructions 在客户端未送时不应被注入"
         );
         assert!(
             result.get("tools").is_none(),
-            "非 Codex OAuth 路径下 tools 在客户端未送时不应被注入"
+            "普通 Responses 路径下 tools 在客户端未送时不应被注入"
         );
     }
 

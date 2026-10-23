@@ -1,12 +1,8 @@
 #![allow(non_snake_case)]
 
-mod agy_account;
-mod auth;
 mod balance;
-mod codex_oauth;
 mod coding_plan;
 mod config;
-mod copilot;
 mod custom_icon;
 mod deeplink;
 mod env;
@@ -31,7 +27,6 @@ pub mod skill;
 mod stream_check;
 mod subscription;
 mod sync_support;
-mod xai_oauth;
 
 mod lightweight;
 mod s3_sync;
@@ -39,13 +34,9 @@ mod usage;
 mod webdav_sync;
 mod workspace;
 
-pub use agy_account::*;
-pub use auth::*;
 pub use balance::*;
-pub use codex_oauth::*;
 pub use coding_plan::*;
 pub use config::*;
-pub use copilot::*;
 pub use custom_icon::*;
 pub use deeplink::*;
 pub use env::*;
@@ -69,7 +60,6 @@ pub use settings::*;
 pub use skill::*;
 pub use stream_check::*;
 pub use subscription::*;
-pub use xai_oauth::*;
 
 pub use lightweight::*;
 pub use s3_sync::*;

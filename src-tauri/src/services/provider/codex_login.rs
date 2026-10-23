@@ -208,15 +208,11 @@ pub(crate) enum AuthTarget<'a> {
     ProxyThirdParty { restore_last: bool },
     /// 没绑托管账号的官方卡（直连，或代理的官方路由）。
     Official { row_auth: &'a Value },
-    /// 托管账号：整份写它的登录。
-    Managed { auth: &'a Value },
 }
 
 pub(crate) struct AuthInput<'a> {
     /// live 的 `auth.json`（文件不存在为 `None`，解析不了的按非对象处理）。
     pub live: Option<&'a Value>,
-    /// live 里是某个托管账号的登录（切走时要清掉，不进暂存）。
-    pub live_is_managed: bool,
     /// 第三方供应商行里的 Key，用来认出旧版留下的残留。
     pub third_party_keys: &'a [String],
     /// 切走的是没绑托管账号的官方卡（它的行 `auth`）：live 里没有登录，说明用户在
@@ -242,16 +238,15 @@ pub(crate) struct AuthPlan {
 pub(crate) fn plan(input: AuthInput<'_>) -> AuthPlan {
     let original = input.stash.clone();
     let mut stash = input.stash;
-    let managed = input.live_is_managed;
     let residue = input
         .live
-        .is_some_and(|auth| !managed && is_residue(auth, input.third_party_keys));
+        .is_some_and(|auth| is_residue(auth, input.third_party_keys));
     let native = input
         .live
-        .filter(|auth| !managed && !residue && codex_auth_has_login_material(auth));
+        .filter(|auth| !residue && codex_auth_has_login_material(auth));
 
     if let Some(row_auth) = input.leaving_official {
-        if native.is_none() && !managed {
+        if native.is_none() {
             match oauth_identity(row_auth) {
                 Some(id) => {
                     stash.take(&id);
@@ -272,10 +267,10 @@ pub(crate) fn plan(input: AuthInput<'_>) -> AuthPlan {
                 stash.put(live);
             }
             // 保留登录关闭时第三方路由旁边不留任何 auth.json（写 `{}` 不等于登出）。
-            (managed || residue || (!preserve && input.live.is_some())).then_some(None)
+            (residue || (!preserve && input.live.is_some())).then_some(None)
         }
         AuthTarget::ProxyThirdParty { restore_last } => {
-            let restored = (restore_last && !managed && native.is_none())
+            let restored = (restore_last && native.is_none())
                 .then(|| stash.last.clone())
                 .flatten()
                 .filter(|id| {
@@ -287,18 +282,10 @@ pub(crate) fn plan(input: AuthInput<'_>) -> AuthPlan {
                 .and_then(|id| stash.take(&id));
             match restored {
                 Some(saved) => Some(Some(saved)),
-                None => managed.then_some(None),
+                None => None,
             }
         }
-        AuthTarget::Managed { auth } => {
-            if let Some(live) = native {
-                stash.put(live);
-            }
-            Some(Some(auth.clone()))
-        }
-        AuthTarget::Official { row_auth } => {
-            official(row_auth, native, managed || residue, &mut stash)
-        }
+        AuthTarget::Official { row_auth } => official(row_auth, native, residue, &mut stash),
     };
 
     // 只算 Codex 会拿来登录的东西（OAuth token、API Key 等），Bedrock 凭据和元数据不算。
@@ -388,7 +375,6 @@ mod tests {
     ) -> AuthInput<'a> {
         AuthInput {
             live,
-            live_is_managed: false,
             third_party_keys: &[],
             leaving_official: None,
             target,
@@ -690,26 +676,6 @@ mod tests {
             )
         });
         assert_eq!(kept.auth, None, "the user's own API key login stays");
-    }
-
-    #[test]
-    fn managed_logins_are_cleared_and_never_stashed() {
-        let managed = login("managed");
-        let empty = json!({});
-        for target in [
-            AuthTarget::ThirdParty { preserve: true },
-            AuthTarget::ProxyThirdParty {
-                restore_last: false,
-            },
-            AuthTarget::Official { row_auth: &empty },
-        ] {
-            let plan = plan(AuthInput {
-                live_is_managed: true,
-                ..input(Some(&managed), target, ready())
-            });
-            assert_eq!(plan.auth, Some(None), "{target:?}");
-            assert_eq!(plan.stash, None, "{target:?}");
-        }
     }
 
     #[test]

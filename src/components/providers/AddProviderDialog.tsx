@@ -23,7 +23,6 @@ import {
   ProviderForm,
   type ProviderFormValues,
 } from "@/components/providers/forms/ProviderForm";
-import { AuthSettingsPanel } from "@/components/providers/AuthSettingsPanel";
 import { UniversalProviderFormModal } from "@/components/universal/UniversalProviderFormModal";
 import { UniversalProviderPanel } from "@/components/universal";
 import { providerPresets } from "@/config/claudeProviderPresets";
@@ -35,7 +34,6 @@ import { extractGrokBuildBaseUrl } from "@/utils/grokBuildConfig";
 import { GROKBUILD_OFFICIAL_PROVIDER_ID } from "@/utils/providerCapabilities";
 import type { OpenClawSuggestedDefaults } from "@/config/openclawProviderPresets";
 import type { UniversalProviderPreset } from "@/config/universalProviderPresets";
-import type { ManagedAuthProvider } from "@/lib/api";
 import type { AppMode } from "@/types/proxy";
 
 interface AddProviderDialogProps {
@@ -96,12 +94,6 @@ export function AddProviderDialog({
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
   // 表单用了聚合的简化布局：页头应用名后标「聚合模式」
   const [stackLayout, setStackLayout] = useState(false);
-  const [authSettingsTarget, setAuthSettingsTarget] =
-    useState<ManagedAuthProvider | null>(null);
-
-  useEffect(() => {
-    setAuthSettingsTarget(null);
-  }, [appId, open]);
 
   // Claude：预设的关键字段套在当前 live 上显示（去掉当前供应商的关键字段），保存时
   // 其余部分的改动写进 live，这份底也用来三方比较。
@@ -154,24 +146,19 @@ export function AddProviderDialog({
   }, [open, appId, t]);
 
   const closeDialog = useCallback(() => {
-    setAuthSettingsTarget(null);
     // 表单每次打开都会重新投影；这里清掉，免得下次打开时先用上一次的底。
     setDraftEditorBase(null);
     onOpenChange(false);
   }, [onOpenChange]);
 
   const handlePanelClose = useCallback(() => {
-    if (authSettingsTarget) {
-      setAuthSettingsTarget(null);
-      return;
-    }
     // 第 2 步的返回回到选预设
     if (step === "form") {
       setStep("pick");
       return;
     }
     closeDialog();
-  }, [authSettingsTarget, closeDialog, step]);
+  }, [closeDialog, step]);
   const formReadyToken = useMemo(
     () => Symbol("provider-form-ready"),
     [appId, open],
@@ -509,7 +496,6 @@ export function AddProviderDialog({
       onStackLayoutChange={setStackLayout}
       onSubmit={handleSubmit}
       onCancel={closeDialog}
-      onManageAuthAccounts={setAuthSettingsTarget}
       onSubmittingChange={setIsFormSubmitting}
       onSubmitReadyChange={handleSubmitReadyChange}
       showButtons={false}
@@ -593,10 +579,6 @@ export function AddProviderDialog({
         </FullScreenPanel>
       )}
 
-      <AuthSettingsPanel
-        target={authSettingsTarget}
-        onClose={() => setAuthSettingsTarget(null)}
-      />
       {conflictDialog}
     </FullScreenPanel>
   );

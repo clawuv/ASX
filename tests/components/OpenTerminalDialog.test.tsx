@@ -6,8 +6,6 @@ import type { Provider } from "@/types";
 
 const openTerminalMock = vi.fn();
 const pickDirectoryMock = vi.fn();
-const agyStatusMock = vi.fn();
-const agyRunningMock = vi.fn();
 
 vi.mock("@/lib/api", () => ({
   providersApi: {
@@ -15,10 +13,6 @@ vi.mock("@/lib/api", () => ({
   },
   settingsApi: {
     pickDirectory: (...args: unknown[]) => pickDirectoryMock(...args),
-  },
-  authApi: {
-    authGetStatus: (...args: unknown[]) => agyStatusMock(...args),
-    agyAccountIsRunning: () => agyRunningMock(),
   },
 }));
 vi.mock("@/lib/platform", () => ({ isMac: () => true }));
@@ -60,51 +54,6 @@ describe("OpenTerminalDialog", () => {
     window.localStorage.clear();
     openTerminalMock.mockReset().mockResolvedValue(true);
     pickDirectoryMock.mockReset();
-    agyStatusMock.mockReset().mockResolvedValue({
-      provider: "agy_oauth",
-      authenticated: true,
-      default_account_id: "a",
-      accounts: [
-        { id: "a", login: "a@example.com" },
-        { id: "b", login: "b@example.com" },
-      ],
-    });
-    agyRunningMock.mockReset().mockResolvedValue(false);
-  });
-
-  const agyOfficial = (accountId?: string) =>
-    ({
-      id: "agy-official",
-      name: "Google Official",
-      category: "official",
-      settingsConfig: { env: {} },
-      meta: accountId
-        ? {
-            authBinding: {
-              source: "managed_account",
-              authProvider: "agy_oauth",
-              accountId,
-            },
-          }
-        : undefined,
-    }) as Provider;
-
-  it("says agy's sign-in will switch when the card is bound to another account", async () => {
-    agyRunningMock.mockResolvedValue(true);
-    renderDialog(vi.fn(), agyOfficial("b"), "agy");
-    expect(
-      await screen.findByText(/打开前把 agy 的登录切换到 b@example.com/),
-    ).toBeInTheDocument();
-    expect(await screen.findByText(/检测到 agy 正在运行/)).toBeInTheDocument();
-  });
-
-  it("stays quiet when the bound account is already signed in, or nothing is bound", async () => {
-    renderDialog(vi.fn(), agyOfficial("a"), "agy");
-    await waitFor(() => expect(agyStatusMock).toHaveBeenCalled());
-    expect(screen.queryByText(/切换到/)).not.toBeInTheDocument();
-    agyStatusMock.mockClear();
-    renderDialog(vi.fn(), agyOfficial(), "agy");
-    expect(agyStatusMock).not.toHaveBeenCalled();
   });
 
   it("explains first and only opens the folder picker on request", async () => {

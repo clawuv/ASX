@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help-tip";
@@ -31,21 +31,10 @@ import {
   DirectModeFormatWarning,
   EndpointField,
   FullUrlToggle,
-  ModelDropdown,
   ModelInputWithFetch,
   type DirectModeFormatNotice,
 } from "./shared";
-import { CopilotAuthSection } from "./CopilotAuthSection";
-import { CodexOAuthSection } from "./CodexOAuthSection";
-import { XaiOAuthSection } from "./XaiOAuthSection";
 import {
-  copilotGetModels,
-  copilotGetModelsForAccount,
-} from "@/lib/api/copilot";
-import type { CopilotModel } from "@/lib/api/copilot";
-import {
-  fetchCodexOauthModels,
-  fetchXaiOauthModels,
   fetchModelsForConfig,
   modelFetchRequestHeaders,
   showFetchModelsError,
@@ -62,7 +51,6 @@ import type {
   ClaudeApiFormat,
   ClaudeApiKeyField,
 } from "@/types";
-import type { ManagedAuthProvider } from "@/lib/api";
 import {
   hasClaudeOneMMarker,
   setClaudeOneMMarker,
@@ -89,31 +77,6 @@ interface ClaudeFormFieldsProps {
   websiteUrl: string;
   isPartner?: boolean;
   partnerPromotionKey?: string;
-
-  // GitHub Copilot OAuth
-  isCopilotPreset?: boolean;
-  usesOAuth?: boolean;
-  isCopilotAuthenticated?: boolean;
-  /** 当前选中的 GitHub 账号 ID（多账号支持） */
-  selectedGitHubAccountId?: string | null;
-  /** GitHub 账号选择回调（多账号支持） */
-  onGitHubAccountSelect?: (accountId: string | null) => void;
-  /** 打开托管账号管理入口 */
-  onManageAuthAccounts?: (target: ManagedAuthProvider) => void;
-
-  // Codex OAuth (ChatGPT Plus/Pro)
-  isCodexOauthPreset?: boolean;
-  isCodexOauthAuthenticated?: boolean;
-  selectedCodexAccountId?: string | null;
-  onCodexAccountSelect?: (accountId: string | null) => void;
-  codexFastMode?: boolean;
-  onCodexFastModeChange?: (enabled: boolean) => void;
-
-  // xAI OAuth
-  isXaiOauthPreset?: boolean;
-  isXaiOauthAuthenticated?: boolean;
-  selectedXaiAccountId?: string | null;
-  onXaiAccountSelect?: (accountId: string | null) => void;
 
   // Template Values
   templateValueEntries: Array<[string, TemplateValueConfig]>;
@@ -191,22 +154,6 @@ export function ClaudeFormFields({
   websiteUrl,
   isPartner,
   partnerPromotionKey,
-  isCopilotPreset,
-  usesOAuth,
-  isCopilotAuthenticated,
-  selectedGitHubAccountId,
-  onGitHubAccountSelect,
-  onManageAuthAccounts,
-  isCodexOauthPreset,
-  isCodexOauthAuthenticated,
-  selectedCodexAccountId,
-  onCodexAccountSelect,
-  codexFastMode,
-  onCodexFastModeChange,
-  isXaiOauthPreset,
-  isXaiOauthAuthenticated,
-  selectedXaiAccountId,
-  onXaiAccountSelect,
   templateValueEntries,
   templateValues,
   templatePresetName,
@@ -261,46 +208,28 @@ export function ClaudeFormFields({
     defaultOpusModel ||
     defaultFableModel ||
     subagentModel ||
-    (!isXaiOauthPreset && !isCodexOauthPreset && apiFormat !== "anthropic") ||
+    apiFormat !== "anthropic" ||
     apiKeyField !== "ANTHROPIC_AUTH_TOKEN" ||
     isFullUrl ||
     customUserAgent ||
     hasRequestOverrides
   );
-  const [advancedExpanded, setAdvancedExpanded] = useState(
-    isXaiOauthPreset ? false : hasAnyAdvancedValue,
-  );
+  const [advancedExpanded, setAdvancedExpanded] = useState(hasAnyAdvancedValue);
 
   // 预设填充高级值后自动展开（仅从折叠→展开，不会自动折叠）
   useEffect(() => {
-    if (isXaiOauthPreset) {
-      setAdvancedExpanded(false);
-    } else if (hasAnyAdvancedValue) {
+    if (hasAnyAdvancedValue) {
       setAdvancedExpanded(true);
     }
-  }, [hasAnyAdvancedValue, isXaiOauthPreset]);
+  }, [hasAnyAdvancedValue]);
 
   // Stack 布局的高级区只有完整 URL、User-Agent 和请求覆盖，开了或填了才展开。
   const [stackAdvancedExpanded, setStackAdvancedExpanded] = useState(
     isFullUrl || !!customUserAgent || hasRequestOverrides,
   );
 
-  // Copilot 可用模型列表
-  const [copilotModels, setCopilotModels] = useState<CopilotModel[]>([]);
-  const [modelsLoading, setModelsLoading] = useState(false);
-  const copilotModelsRequestRef = useRef(0);
-
-  // Codex OAuth 可用模型列表
-  const [codexOauthModels, setCodexOauthModels] = useState<FetchedModel[]>([]);
-  const [codexOauthModelsLoading, setCodexOauthModelsLoading] = useState(false);
-  const codexOauthModelsRequestRef = useRef(0);
-
-  const [xaiOauthModels, setXaiOauthModels] = useState<FetchedModel[]>([]);
-  const [xaiOauthModelsLoading, setXaiOauthModelsLoading] = useState(false);
-  const xaiOauthModelsRequestRef = useRef(0);
   const fallbackUsesOneM = hasClaudeOneMMarker(claudeModel);
 
-  // 通用模型获取（非 Copilot 供应商）
   const [fetchedModels, setFetchedModels] = useState<FetchedModel[]>([]);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
 
@@ -363,149 +292,8 @@ export function ClaudeFormFields({
     t,
   ]);
 
-  const handleFetchCopilotModels = useCallback(() => {
-    if (!isCopilotAuthenticated) {
-      toast.error(
-        t("copilot.loginRequired", {
-          defaultValue: "请先登录 GitHub Copilot",
-        }),
-      );
-      return;
-    }
-
-    const requestId = copilotModelsRequestRef.current + 1;
-    copilotModelsRequestRef.current = requestId;
-    setModelsLoading(true);
-    const fetchModels = selectedGitHubAccountId
-      ? copilotGetModelsForAccount(selectedGitHubAccountId)
-      : copilotGetModels();
-
-    fetchModels
-      .then((models) => {
-        if (copilotModelsRequestRef.current !== requestId) return;
-        setCopilotModels(models);
-        showModelFetchResult(models.length);
-      })
-      .catch((err) => {
-        if (copilotModelsRequestRef.current !== requestId) return;
-        console.warn("[Copilot] Failed to fetch models:", err);
-        toast.error(
-          t("copilot.loadModelsFailed", {
-            defaultValue: "加载 Copilot 模型列表失败",
-          }),
-        );
-      })
-      .finally(() => {
-        if (copilotModelsRequestRef.current === requestId) {
-          setModelsLoading(false);
-        }
-      });
-  }, [
-    isCopilotAuthenticated,
-    selectedGitHubAccountId,
-    showModelFetchResult,
-    t,
-  ]);
-
-  const handleFetchCodexOauthModels = useCallback(() => {
-    if (!isCodexOauthAuthenticated) {
-      toast.error(
-        t("codexOauth.loginRequired", {
-          defaultValue: "请先登录 ChatGPT 账号",
-        }),
-      );
-      return;
-    }
-
-    const requestId = codexOauthModelsRequestRef.current + 1;
-    codexOauthModelsRequestRef.current = requestId;
-    setCodexOauthModelsLoading(true);
-    fetchCodexOauthModels(selectedCodexAccountId)
-      .then((models) => {
-        if (codexOauthModelsRequestRef.current !== requestId) return;
-        setCodexOauthModels(models);
-        showModelFetchResult(models.length);
-      })
-      .catch((err) => {
-        if (codexOauthModelsRequestRef.current !== requestId) return;
-        console.warn("[CodexOAuth] Failed to fetch models:", err);
-        showFetchModelsError(err, t);
-      })
-      .finally(() => {
-        if (codexOauthModelsRequestRef.current === requestId) {
-          setCodexOauthModelsLoading(false);
-        }
-      });
-  }, [
-    isCodexOauthAuthenticated,
-    selectedCodexAccountId,
-    showModelFetchResult,
-    t,
-  ]);
-
-  const handleFetchXaiOauthModels = useCallback(() => {
-    if (!isXaiOauthAuthenticated) {
-      toast.error(
-        t("xaiOauth.loginRequired", {
-          defaultValue: "请先登录 xAI 账号",
-        }),
-      );
-      return;
-    }
-
-    const requestId = xaiOauthModelsRequestRef.current + 1;
-    xaiOauthModelsRequestRef.current = requestId;
-    setXaiOauthModelsLoading(true);
-    fetchXaiOauthModels(selectedXaiAccountId)
-      .then((models) => {
-        if (xaiOauthModelsRequestRef.current !== requestId) return;
-        setXaiOauthModels(models);
-        showModelFetchResult(models.length);
-      })
-      .catch((err) => {
-        if (xaiOauthModelsRequestRef.current !== requestId) return;
-        console.warn("[XaiOAuth] Failed to fetch models:", err);
-        showFetchModelsError(err, t);
-      })
-      .finally(() => {
-        if (xaiOauthModelsRequestRef.current === requestId) {
-          setXaiOauthModelsLoading(false);
-        }
-      });
-  }, [isXaiOauthAuthenticated, selectedXaiAccountId, showModelFetchResult, t]);
-
-  useEffect(() => {
-    copilotModelsRequestRef.current += 1;
-    setCopilotModels([]);
-    setModelsLoading(false);
-  }, [isCopilotPreset, isCopilotAuthenticated, selectedGitHubAccountId]);
-
-  useEffect(() => {
-    codexOauthModelsRequestRef.current += 1;
-    setCodexOauthModels([]);
-    setCodexOauthModelsLoading(false);
-  }, [isCodexOauthPreset, isCodexOauthAuthenticated, selectedCodexAccountId]);
-
-  useEffect(() => {
-    xaiOauthModelsRequestRef.current += 1;
-    setXaiOauthModels([]);
-    setXaiOauthModelsLoading(false);
-  }, [isXaiOauthPreset, isXaiOauthAuthenticated, selectedXaiAccountId]);
-
-  const modelFetchLoading = isCopilotPreset
-    ? modelsLoading
-    : isCodexOauthPreset
-      ? codexOauthModelsLoading
-      : isXaiOauthPreset
-        ? xaiOauthModelsLoading
-        : isFetchingModels;
-  const handleModelFetchClick = isCopilotPreset
-    ? handleFetchCopilotModels
-    : isCodexOauthPreset
-      ? handleFetchCodexOauthModels
-      : isXaiOauthPreset
-        ? handleFetchXaiOauthModels
-        : handleFetchModels;
+  const modelFetchLoading = isFetchingModels;
+  const handleModelFetchClick = handleFetchModels;
 
   // 模型输入框：支持手动输入 + 下拉选择
   const renderModelInput = (
@@ -517,87 +305,6 @@ export function ClaudeFormFields({
   ) => {
     const updateValue =
       onValueChange ?? ((next: string) => onModelChange(field, next));
-
-    if (isCodexOauthPreset) {
-      return (
-        <ModelInputWithFetch
-          id={id}
-          value={value}
-          onChange={updateValue}
-          placeholder={placeholder}
-          fetchedModels={codexOauthModels}
-          isLoading={codexOauthModelsLoading}
-        />
-      );
-    }
-
-    if (isXaiOauthPreset) {
-      return (
-        <ModelInputWithFetch
-          id={id}
-          value={value}
-          onChange={updateValue}
-          placeholder={placeholder}
-          fetchedModels={xaiOauthModels}
-          isLoading={xaiOauthModelsLoading}
-        />
-      );
-    }
-
-    if (isCopilotPreset && copilotModels.length > 0) {
-      // Reuse the searchable dropdown by mapping Copilot models to FetchedModel.
-      const copilotFetchedModels: FetchedModel[] = copilotModels.map((m) => ({
-        id: m.id,
-        ownedBy: m.vendor || null,
-      }));
-
-      return (
-        <div className="flex gap-1">
-          <Input
-            id={id}
-            type="text"
-            value={value}
-            onChange={(e) => updateValue(e.target.value)}
-            placeholder={placeholder}
-            autoComplete="off"
-            className="flex-1"
-          />
-          <ModelDropdown models={copilotFetchedModels} onSelect={updateValue} />
-        </div>
-      );
-    }
-
-    if (isCopilotPreset && modelsLoading) {
-      return (
-        <div className="flex gap-1">
-          <Input
-            id={id}
-            type="text"
-            value={value}
-            onChange={(e) => updateValue(e.target.value)}
-            placeholder={placeholder}
-            autoComplete="off"
-            className="flex-1"
-          />
-          <Button variant="outline" size="icon" className="shrink-0" disabled>
-            <Loader2 className="h-4 w-4 animate-spin" />
-          </Button>
-        </div>
-      );
-    }
-
-    if (isCopilotPreset) {
-      return (
-        <Input
-          id={id}
-          type="text"
-          value={value}
-          onChange={(e) => updateValue(e.target.value)}
-          placeholder={placeholder}
-          autoComplete="off"
-        />
-      );
-    }
 
     // 普通供应商: 使用 ModelInputWithFetch（获取按钮在 section 标题旁）
     return (
@@ -685,51 +392,10 @@ export function ClaudeFormFields({
     handleRoleModelChange(row, setClaudeOneMMarker(row.model, enabled));
   };
 
-  const oauthSections = (
-    <>
-      {/* GitHub Copilot OAuth 认证 */}
-      {isCopilotPreset && (
-        <CopilotAuthSection
-          mode="select"
-          selectedAccountId={selectedGitHubAccountId}
-          onAccountSelect={onGitHubAccountSelect}
-          onManageAccounts={
-            onManageAuthAccounts
-              ? () => onManageAuthAccounts("github_copilot")
-              : undefined
-          }
-        />
-      )}
-
-      {/* Codex OAuth 认证 (ChatGPT Plus/Pro) */}
-      {isCodexOauthPreset && (
-        <CodexOAuthSection
-          mode="select"
-          selectedAccountId={selectedCodexAccountId}
-          onAccountSelect={onCodexAccountSelect}
-          onManageAccounts={
-            onManageAuthAccounts
-              ? () => onManageAuthAccounts("codex_oauth")
-              : undefined
-          }
-          fastModeEnabled={codexFastMode}
-          onFastModeChange={onCodexFastModeChange}
-        />
-      )}
-
-      {isXaiOauthPreset && (
-        <XaiOAuthSection
-          selectedAccountId={selectedXaiAccountId}
-          onAccountSelect={onXaiAccountSelect}
-        />
-      )}
-    </>
-  );
-
   const apiKeySection = (
     <>
       {/* API Key 输入框（非 OAuth 预设时显示） */}
-      {shouldShowApiKey && !usesOAuth && (
+      {shouldShowApiKey && (
         <ApiKeySection
           value={apiKey}
           onChange={onApiKeyChange}
@@ -795,8 +461,8 @@ export function ClaudeFormFields({
 
   const endpointSection = (
     <>
-      {/* Base URL 输入框；Codex / xAI 托管账号卡的上游地址由后端固定，不显示 */}
-      {shouldShowSpeedTest && !isCodexOauthPreset && !isXaiOauthPreset && (
+      {/* Base URL 输入框 */}
+      {shouldShowSpeedTest && (
         <EndpointField
           id="baseUrl"
           label={t("providerForm.apiEndpoint")}
@@ -840,52 +506,50 @@ export function ClaudeFormFields({
 
   const apiFormatField = (
     <>
-      {/* 上游格式选择（仅非云服务商显示；xAI、Codex 托管账号卡的格式由后端固定） */}
-      {category !== "cloud_provider" &&
-        !isXaiOauthPreset &&
-        !isCodexOauthPreset && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-0.5">
-              <FormLabel htmlFor="apiFormat">{apiFormatLabel}</FormLabel>
-              <HelpTip title={apiFormatLabel}>
-                {t("providerForm.apiFormatHelp", {
-                  defaultValue:
-                    "看供应商原生支持哪种协议：Anthropic Messages 原样转发、不转换格式；其余三种由路由转成 Anthropic Messages。",
-                })}
-              </HelpTip>
-            </div>
-            <Select value={apiFormat} onValueChange={onApiFormatChange}>
-              <SelectTrigger id="apiFormat" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="anthropic">
-                  {t("providerForm.apiFormatAnthropic", {
-                    defaultValue: "Anthropic Messages (原生)",
-                  })}
-                </SelectItem>
-                <SelectItem value="openai_chat">
-                  {t("providerForm.apiFormatOpenAIChat", {
-                    defaultValue: "OpenAI Chat Completions (需转换)",
-                  })}
-                </SelectItem>
-                <SelectItem value="openai_responses">
-                  {t("providerForm.apiFormatOpenAIResponses", {
-                    defaultValue: "OpenAI Responses API (需转换)",
-                  })}
-                </SelectItem>
-                <SelectItem value="gemini_native">
-                  {t("providerForm.apiFormatGeminiNative", {
-                    defaultValue: "Gemini Native generateContent (需转换)",
-                  })}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {directModeFormatNotice && apiFormat !== "anthropic" && (
-              <DirectModeFormatWarning notice={directModeFormatNotice} />
-            )}
+      {/* 上游格式选择（仅非云服务商显示） */}
+      {category !== "cloud_provider" && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-0.5">
+            <FormLabel htmlFor="apiFormat">{apiFormatLabel}</FormLabel>
+            <HelpTip title={apiFormatLabel}>
+              {t("providerForm.apiFormatHelp", {
+                defaultValue:
+                  "看供应商原生支持哪种协议：Anthropic Messages 原样转发、不转换格式；其余三种由路由转成 Anthropic Messages。",
+              })}
+            </HelpTip>
           </div>
-        )}
+          <Select value={apiFormat} onValueChange={onApiFormatChange}>
+            <SelectTrigger id="apiFormat" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="anthropic">
+                {t("providerForm.apiFormatAnthropic", {
+                  defaultValue: "Anthropic Messages (原生)",
+                })}
+              </SelectItem>
+              <SelectItem value="openai_chat">
+                {t("providerForm.apiFormatOpenAIChat", {
+                  defaultValue: "OpenAI Chat Completions (需转换)",
+                })}
+              </SelectItem>
+              <SelectItem value="openai_responses">
+                {t("providerForm.apiFormatOpenAIResponses", {
+                  defaultValue: "OpenAI Responses API (需转换)",
+                })}
+              </SelectItem>
+              <SelectItem value="gemini_native">
+                {t("providerForm.apiFormatGeminiNative", {
+                  defaultValue: "Gemini Native generateContent (需转换)",
+                })}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          {directModeFormatNotice && apiFormat !== "anthropic" && (
+            <DirectModeFormatWarning notice={directModeFormatNotice} />
+          )}
+        </div>
+      )}
     </>
   );
 
@@ -937,17 +601,14 @@ export function ClaudeFormFields({
     usesThirdPartyEndpoint &&
     !(directModeFormatNotice ? defaultHaikuModel : claudeModel).trim();
 
-  // 完整 URL 跟着地址框：托管账号卡的地址由后端固定，没有这个开关。
-  const fullUrlToggle = shouldShowSpeedTest &&
-    showEndpointTools &&
-    !isCodexOauthPreset &&
-    !isXaiOauthPreset && (
-      <FullUrlToggle
-        checked={isFullUrl}
-        onCheckedChange={onFullUrlChange}
-        geminiNative={apiFormat === "gemini_native"}
-      />
-    );
+  // 完整 URL 跟着地址框。
+  const fullUrlToggle = shouldShowSpeedTest && showEndpointTools && (
+    <FullUrlToggle
+      checked={isFullUrl}
+      onCheckedChange={onFullUrlChange}
+      geminiNative={apiFormat === "gemini_native"}
+    />
+  );
 
   // 两项都只在路由、聚合模式下生效：在分组开头说一次，各自的作用收进字段名后的「?」。
   const userAgentAndOverrides = (
@@ -981,24 +642,12 @@ export function ClaudeFormFields({
 
   if (variant === "stack") {
     // 批量勾选模型用当前预设对应的那份上游列表。
-    const stackFetchedModels: FetchedModel[] = isCopilotPreset
-      ? copilotModels.map((m) => ({ id: m.id, ownedBy: m.vendor || null }))
-      : isCodexOauthPreset
-        ? codexOauthModels
-        : isXaiOauthPreset
-          ? xaiOauthModels
-          : fetchedModels;
+    const stackFetchedModels: FetchedModel[] = fetchedModels;
     // 认证字段只对 Anthropic 格式、自己填 Key 的供应商有意义，放在 Key 旁边。
-    const showAuthField =
-      shouldShowApiKey &&
-      !usesOAuth &&
-      !isCodexOauthPreset &&
-      !isXaiOauthPreset &&
-      apiFormat === "anthropic";
+    const showAuthField = shouldShowApiKey && apiFormat === "anthropic";
 
     return (
       <>
-        {oauthSections}
         {apiFormatField}
         {apiKeySection}
         {showAuthField && authFieldSelect}
@@ -1017,45 +666,40 @@ export function ClaudeFormFields({
           />
         )}
 
-        {/* 高级区只有 UA 和请求覆盖；Copilot 的转发会跳过这两项，整块不显示 */}
-        {!isCopilotPreset && (
-          <Collapsible
-            open={stackAdvancedExpanded}
-            onOpenChange={setStackAdvancedExpanded}
-            className="rounded-lg border border-border p-4"
-          >
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant={null}
-                size="sm"
-                className="h-8 w-full justify-start gap-1.5 px-0 text-sm font-medium text-fg-1 hover:opacity-70"
-              >
-                {stackAdvancedExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-                {t("providerForm.advancedOptionsToggle")}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 pt-2">
-              {fullUrlToggle && (
-                <div className="border-b border-border pb-3">
-                  {fullUrlToggle}
-                </div>
+        {/* 高级区只有 UA 和请求覆盖 */}
+        <Collapsible
+          open={stackAdvancedExpanded}
+          onOpenChange={setStackAdvancedExpanded}
+          className="rounded-lg border border-border p-4"
+        >
+          <CollapsibleTrigger asChild>
+            <Button
+              type="button"
+              variant={null}
+              size="sm"
+              className="h-8 w-full justify-start gap-1.5 px-0 text-sm font-medium text-fg-1 hover:opacity-70"
+            >
+              {stackAdvancedExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
               )}
-              {userAgentAndOverrides}
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+              {t("providerForm.advancedOptionsToggle")}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-4 pt-2">
+            {fullUrlToggle && (
+              <div className="border-b border-border pb-3">{fullUrlToggle}</div>
+            )}
+            {userAgentAndOverrides}
+          </CollapsibleContent>
+        </Collapsible>
       </>
     );
   }
 
   return (
     <>
-      {oauthSections}
       {apiKeySection}
       {templateSection}
       {endpointSection}
@@ -1087,12 +731,8 @@ export function ClaudeFormFields({
 
             {fullUrlToggle}
 
-            {/* 认证字段只决定 Anthropic 格式上游的认证头（OpenAI 格式一律 Bearer）；Copilot
-                靠它决定占位符写在哪个变量；Codex / xAI 托管账号卡的认证由后端注入。 */}
-            {!isCodexOauthPreset &&
-              !isXaiOauthPreset &&
-              (apiFormat === "anthropic" || isCopilotPreset) &&
-              authFieldSelect}
+            {/* 认证字段只决定 Anthropic 格式上游的认证头（OpenAI 格式一律 Bearer） */}
+            {apiFormat === "anthropic" && authFieldSelect}
 
             {/* 模型映射 */}
             <div className="space-y-1 border-t border-border pt-2">
@@ -1318,12 +958,9 @@ export function ClaudeFormFields({
               )}
             </div>
 
-            {/* Copilot 的请求由转发层按 Copilot 客户端的样子发，UA 和请求覆盖都会被跳过 */}
-            {!isCopilotPreset && (
-              <div className="space-y-4 border-t border-border pt-4">
-                {userAgentAndOverrides}
-              </div>
-            )}
+            <div className="space-y-4 border-t border-border pt-4">
+              {userAgentAndOverrides}
+            </div>
           </CollapsibleContent>
         </Collapsible>
       )}

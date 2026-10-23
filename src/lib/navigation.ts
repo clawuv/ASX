@@ -5,7 +5,7 @@ import type { AppId } from "@/lib/api";
  *
  * - 智能体页：侧栏的「智能体」是所有客户端的合并入口；页头页签切换具体客户端，
  *   每个客户端右侧仍是它自己的供应商列表。
- * - 全局页：用量统计、授权中心、MCP、Skills、提示词、会话、智能体、应用，每样只出现一次。
+ * - 全局页：用量统计、MCP、Skills、提示词、会话、智能体、应用，每样只出现一次。
  * - 设置：侧栏换成设置目录，6 个分组。
  */
 
@@ -17,7 +17,6 @@ export type AppPage =
 
 export type GlobalPage =
   | "usage"
-  | "auth"
   | "mcp"
   | "skills"
   | "skillsDiscovery"
@@ -54,7 +53,6 @@ const APP_PAGES: AppPage[] = [
 
 const GLOBAL_PAGES: GlobalPage[] = [
   "usage",
-  "auth",
   "mcp",
   "skills",
   "skillsDiscovery",

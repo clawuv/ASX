@@ -37,14 +37,12 @@ export const PRESET_GROUP_ORDER: PresetGroup[] = [
 
 type PresetFields = AnyPreset & {
   websiteUrl?: string;
-  requiresOAuth?: boolean;
-  providerType?: string;
   apiFormat?: string;
 };
 
 export function presetGroup(preset: AnyPreset): PresetGroup {
   const p = preset as PresetFields;
-  if (p.category === "official" || p.requiresOAuth || p.providerType) {
+  if (p.category === "official") {
     return "login";
   }
   switch (p.category) {
@@ -437,7 +435,6 @@ export function presetNeedsRouting(
     category: p.category,
     meta: {
       ...(p.apiFormat ? { apiFormat: p.apiFormat } : {}),
-      ...(p.providerType ? { providerType: p.providerType } : {}),
     },
   } as Provider;
   try {
@@ -456,14 +453,7 @@ export function presetRowNeedsRouting(
 }
 
 /** 账号登录类的副行：用哪家的账号登录 */
-export function loginAccountKey(
-  appId: AppId | undefined,
-  preset: AnyPreset,
-): string {
-  const type = (preset as PresetFields).providerType;
-  if (type === "github_copilot") return "github";
-  if (type === "codex_oauth") return "chatgpt";
-  if (type === "xai_oauth") return "xai";
+export function loginAccountKey(appId: AppId | undefined): string {
   switch (appId) {
     case "codex":
       return "chatgpt";

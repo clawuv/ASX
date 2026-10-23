@@ -1204,7 +1204,6 @@ fn projected_route_table(settings: &serde_json::Value) -> toml_edit::Table {
     let projection = CodexProjection::of(&RowInput {
         settings,
         official: false,
-        proxy_injected_oauth: false,
     })
     .expect("row projects");
     match projection.route {

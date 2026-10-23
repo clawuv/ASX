@@ -14,19 +14,6 @@ export { proxyApi } from "./proxy";
 export { openclawApi } from "./openclaw";
 export { sessionsApi } from "./sessions";
 export { workspaceApi } from "./workspace";
-export * as authApi from "./auth";
-export * as copilotApi from "./copilot";
 export type { ProviderSwitchEvent } from "./providers";
 export type { Prompt } from "./prompts";
 export type { Profile, ProfilePayload, ProfilesResponse } from "./profiles";
-export type {
-  CopilotDeviceCodeResponse,
-  CopilotAuthStatus,
-  GitHubAccount,
-} from "./copilot";
-export type {
-  ManagedAuthProvider,
-  ManagedAuthAccount,
-  ManagedAuthStatus,
-  ManagedAuthDeviceCodeResponse,
-} from "./auth";

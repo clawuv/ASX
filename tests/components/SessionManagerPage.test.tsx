@@ -338,7 +338,7 @@ describe("SessionManagerPage", () => {
   });
 
   it("drills into a session, merges tool calls and steps between sessions", async () => {
-    renderPage("codex");
+    const { container } = renderPage("codex");
     await screen.findByText("Alpha Session");
 
     openRow("Alpha Session");
@@ -346,9 +346,11 @@ describe("SessionManagerPage", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Alpha Session" }),
     ).toBeInTheDocument();
-    // 返回和会话名并进页头：只剩一层页头，「会话」那条不再单独出现
+    // 子页返回按钮已移除，只保留会话名这一层页头。
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "返回会话列表" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "返回会话列表" }),
+    ).not.toBeInTheDocument();
     // 正文和右侧对话目录各出现一次
     expect(await screen.findAllByText("alpha question")).toHaveLength(2);
     expect(
@@ -375,7 +377,8 @@ describe("SessionManagerPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "上一个会话" })).toBeEnabled();
 
-    fireEvent.click(screen.getByRole("button", { name: "返回会话列表" }));
+    // 子页用 Escape 回列表。
+    fireEvent.keyDown(container, { key: "Escape" });
     expect(await screen.findByText("Alpha Session")).toBeInTheDocument();
   });
 

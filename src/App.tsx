@@ -80,7 +80,6 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { OpenTerminalDialog } from "@/components/providers/OpenTerminalDialog";
 import { discardUnsavedChanges, hasUnsavedChanges } from "@/lib/unsavedChanges";
 import { SettingsPage } from "@/components/settings/SettingsPage";
-import { AuthCenterPanel } from "@/components/settings/AuthCenterPanel";
 import { AppsPage } from "@/components/apps/AppsPage";
 import {
   checkToolUpdatesInBackground,
@@ -99,7 +98,6 @@ import UnifiedSkillsPanel from "@/components/skills/UnifiedSkillsPanel";
 import { DeepLinkImportDialog } from "@/components/DeepLinkImportDialog";
 import { FirstRunNoticeDialog } from "@/components/FirstRunNoticeDialog";
 import { WhatsNewNotice } from "@/components/WhatsNewDialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HoverTip } from "@/components/ui/hover-tip";
 import { PageTabs } from "@/components/ui/page-tabs";
@@ -254,10 +252,12 @@ function App() {
   }, [optionalAgentVersions.data, visibleApps]);
 
   useEffect(() => {
+    // 可选智能体探测慢于首个渲染时，不要先把 saved app 重置回 Claude。
+    if (optionalAgentVersions.isPending) return;
     if (!navVisibleApps[activeApp]) {
       setActiveApp(APP_IDS.find((app) => navVisibleApps[app]) ?? "claude");
     }
-  }, [navVisibleApps, activeApp]);
+  }, [navVisibleApps, activeApp, optionalAgentVersions.isPending]);
 
   // 启动后把其他可见应用的供应商列表预取进缓存：第一次切过去直接有数据，不先画骨架
   const providersPrefetchedRef = useRef(false);
@@ -1539,30 +1539,6 @@ function App() {
             initialAppType={usageAppFilter}
             onOpenRoutingSettings={() => openSettings("routing")}
           />
-        );
-      case "auth":
-        return (
-          <>
-            <AppPageHeader
-              title={t("nav.auth")}
-              titleExtra={
-                <Badge
-                  variant="outline"
-                  className="ms-1 h-5 px-1.5 text-badge font-medium"
-                >
-                  {t("settings.authCenter.beta", { defaultValue: "Beta" })}
-                </Badge>
-              }
-            />
-            <div
-              id="main-content"
-              className="min-h-0 flex-1 overflow-y-auto scroll-stable"
-            >
-              <div className="px-6 pb-10 pt-4">
-                <AuthCenterPanel showIntro={false} />
-              </div>
-            </div>
-          </>
         );
       case "mcp":
         return (

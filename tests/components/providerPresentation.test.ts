@@ -264,36 +264,6 @@ describe("buildSwitchSections — route", () => {
     expect(item(fallback.sections, "backup").tone).toBeUndefined();
   });
 
-  it("keeps Codex official accounts out of the failover queue with a reason", () => {
-    // 后端 require_failover_provider 会拒绝；卡上要先说清楚，而不是点了没反应
-    const managed = provider("managed", {
-      settingsConfig: { auth: {}, config: "" },
-      meta: {
-        authBinding: {
-          source: "managed_account",
-          authProvider: "codex_oauth",
-          accountId: "acct",
-        },
-      },
-    } as Partial<Provider>);
-    const { sections, input } = build({
-      app: "codex",
-      active: "route",
-      view: "route",
-      routeId: "relay",
-      failoverOn: true,
-      queue: ["relay"],
-      providers: [relay, backup, managed],
-    });
-
-    expect(item(sections, "managed").dim).toBe(true);
-    expect(button(sections, "managed", "blocked").disabledReason).toBe(
-      "providerCard.reason.noFailover",
-    );
-    button(sections, "backup", "queueAdd").onClick();
-    expect(input.actions.queueAdd).toHaveBeenCalledWith(backup);
-  });
-
   it("offers no row action while previewing route from direct", () => {
     const { sections } = build({
       active: "direct",
@@ -441,36 +411,6 @@ describe("buildSwitchSections — stack", () => {
     );
     // 它能做默认
     expect(setDefaultItem(sections, "account").disabledReason).toBeUndefined();
-  });
-
-  it("never lets ChatGPT accounts be added in Codex Stack mode, even legacy cards without a category", () => {
-    const managed = provider("managed", {
-      settingsConfig: { auth: {}, config: "" },
-      meta: {
-        authBinding: {
-          source: "managed_account",
-          authProvider: "codex_oauth",
-          accountId: "acct",
-        },
-      },
-    } as Partial<Provider>);
-    const { sections, input } = build({
-      app: "codex",
-      active: "stack",
-      view: "stack",
-      providers: [relay, backup, managed],
-      routeId: "relay",
-      stackMembers: new Map([["relay", 1]]),
-    });
-
-    expect(item(sections, "managed").chips.map((c) => c.key)).toContain(
-      "official",
-    );
-    expect(button(sections, "managed", "add").disabledReason).toBe(
-      "providerCard.reason.officialStack",
-    );
-    setDefaultItem(sections, "managed").onSelect();
-    expect(input.actions.stackSetDefault).toHaveBeenCalledWith(managed);
   });
 });
 

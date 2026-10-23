@@ -11,7 +11,6 @@ import {
   Globe,
   History,
   Info,
-  KeyRound,
   LayoutGrid,
   PanelLeft,
   Route,
@@ -265,14 +264,8 @@ function MainDirectory({
   const { moneyShort } = useMoneyFormat();
   const { data: settings } = useSettingsQuery();
   const { hasUpdate } = useUpdate();
-  const {
-    appStatus,
-    todayCost,
-    todayTokens,
-    todayRequests,
-    todayHitRate,
-    authNeedsAttention,
-  } = useSidebarStatus();
+  const { appStatus, todayCost, todayTokens, todayRequests, todayHitRate } =
+    useSidebarStatus();
   // 合并成一个菜单后，把所有可见客户端的路由接管异常聚合到这一行提醒
   const agentsNeedAttention = APP_IDS.filter((app) => visibleApps[app]).some(
     (app) => appStatus(app).alert,
@@ -341,12 +334,6 @@ function MainDirectory({
     items: [
       { page: "prompts", label: t("nav.prompts"), icon: BookOpen },
       { page: "sessions", label: t("nav.sessions"), icon: History },
-      {
-        page: "auth",
-        label: t("nav.auth"),
-        icon: KeyRound,
-        alert: authNeedsAttention ? t("nav.authNeedsReauth") : undefined,
-      },
       {
         page: "usage",
         label: t("nav.usage"),

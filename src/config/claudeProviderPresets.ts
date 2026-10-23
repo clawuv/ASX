@@ -58,14 +58,6 @@ export interface ProviderPreset extends PresetFamilyFields {
     | "openai_responses"
     | "gemini_native";
 
-  // 供应商类型标识（用于特殊供应商检测）
-  // - "github_copilot": GitHub Copilot 供应商（需要 OAuth 认证）
-  // - "codex_oauth": OpenAI Codex via ChatGPT Plus/Pro 反代（需要 OAuth 认证）
-  providerType?: "github_copilot" | "codex_oauth" | "xai_oauth";
-
-  // 是否需要 OAuth 认证（而非 API Key）
-  requiresOAuth?: boolean;
-
   // 是否在 UI 中隐藏该预设（预设仍存在，仅不在列表中显示）
   hidden?: boolean;
 
@@ -2586,80 +2578,6 @@ export const providerPresets: ProviderPreset[] = [
       },
     },
     icon: "cloudflare",
-  },
-  {
-    name: "GitHub Copilot",
-    websiteUrl: "https://github.com/features/copilot",
-    settingsConfig: {
-      env: {
-        ANTHROPIC_BASE_URL: "https://api.githubcopilot.com",
-        ANTHROPIC_MODEL: "claude-sonnet-5",
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: "claude-haiku-4.5",
-        ANTHROPIC_DEFAULT_SONNET_MODEL: "claude-sonnet-5",
-        ANTHROPIC_DEFAULT_OPUS_MODEL: "claude-sonnet-5",
-      },
-    },
-    category: "third_party",
-    apiFormat: "openai_chat",
-    providerType: "github_copilot",
-    requiresOAuth: true,
-    icon: "github",
-    iconColor: "#000000",
-  },
-  {
-    name: "Codex",
-    websiteUrl: "https://openai.com/chatgpt/pricing",
-    settingsConfig: {
-      env: {
-        // base_url 由代理后端强制重写为 chatgpt.com/backend-api/codex
-        // 用户无需配置
-        ANTHROPIC_BASE_URL: "https://chatgpt.com/backend-api/codex",
-        ANTHROPIC_MODEL: "gpt-5.6-sol",
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: "gpt-5.6-luna",
-        ANTHROPIC_DEFAULT_SONNET_MODEL: "gpt-5.6-sol",
-        ANTHROPIC_DEFAULT_OPUS_MODEL: "gpt-5.6-sol",
-        // Claude Code falls back to a 200K context window for unrecognized
-        // non-Claude model ids. The ChatGPT Codex backend catalogs gpt-5.6-sol
-        // at a 272K window (Codex budgets 95% of it), not the 1.05M API window;
-        // it was 372K until mid-2026 (openai/codex#31860). Same cap as every
-        // GPT window CC Switch fills (GPT_CONTEXT_WINDOW_CAP). Pin both knobs:
-        // the compact window equals min(model window, value), and the routing
-        // alias gets a 1M model window, so the compact window is what keeps the
-        // trigger under the backend's limit.
-        // Tweak these directly in the JSON editor; no form fields on purpose.
-        CLAUDE_CODE_MAX_CONTEXT_TOKENS: "272000",
-        CLAUDE_CODE_AUTO_COMPACT_WINDOW: "272000",
-      },
-    },
-    category: "third_party",
-    apiFormat: "openai_responses",
-    providerType: "codex_oauth",
-    requiresOAuth: true,
-    icon: "openai",
-    iconColor: "#000000",
-  },
-  {
-    name: "xAI (Grok)",
-    websiteUrl: "https://x.ai/grok",
-    settingsConfig: {
-      env: {
-        // The proxy enforces both this origin and the Responses wire format.
-        ANTHROPIC_BASE_URL: "https://api.x.ai/v1",
-        ANTHROPIC_MODEL: "grok-4.5",
-        ANTHROPIC_DEFAULT_HAIKU_MODEL: "grok-4.5",
-        ANTHROPIC_DEFAULT_SONNET_MODEL: "grok-4.5",
-        ANTHROPIC_DEFAULT_OPUS_MODEL: "grok-4.5",
-        // Claude Code falls back to 200K for non-Claude model ids; grok-4.5
-        // has a 500K window (same as grok_config::DEFAULT_CONTEXT_WINDOW).
-        CLAUDE_CODE_MAX_CONTEXT_TOKENS: "500000",
-      },
-    },
-    category: "third_party",
-    apiFormat: "openai_responses",
-    providerType: "xai_oauth",
-    requiresOAuth: true,
-    icon: "xai",
-    iconColor: "#000000",
   },
   {
     name: "Nvidia",

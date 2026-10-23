@@ -110,13 +110,18 @@ export function PageTabs<T extends string>({
     const edge = 20;
     const left = element.offsetLeft - edge;
     const right = element.offsetLeft + element.offsetWidth + edge;
+    const scrollTo = (target: number) => {
+      // jsdom 只实现 scrollLeft；浏览器保留平滑滚动。
+      if (typeof scroller.scrollTo === "function") {
+        scroller.scrollTo({ left: target, behavior: "smooth" });
+      } else {
+        scroller.scrollLeft = target;
+      }
+    };
     if (left < scroller.scrollLeft) {
-      scroller.scrollTo({ left, behavior: "smooth" });
+      scrollTo(left);
     } else if (right > scroller.scrollLeft + scroller.clientWidth) {
-      scroller.scrollTo({
-        left: right - scroller.clientWidth,
-        behavior: "smooth",
-      });
+      scrollTo(right - scroller.clientWidth);
     }
   };
 

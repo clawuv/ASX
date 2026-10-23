@@ -112,14 +112,6 @@ export interface UsageResult {
   error?: string;
 }
 
-export type AuthBindingSource = "provider_config" | "managed_account";
-
-export interface AuthBinding {
-  source: AuthBindingSource;
-  authProvider?: string;
-  accountId?: string;
-}
-
 export interface ClaudeDesktopModelRoute {
   model: string;
   labelOverride?: string;
@@ -200,11 +192,6 @@ export interface ProviderMeta {
     | "openai_chat"
     | "openai_responses"
     | "gemini_native";
-  // Managed Codex Copilot uses this instead of apiFormat. Missing/unknown means auto.
-  // Keep the raw string so selections from newer versions survive an edit/save.
-  codexCopilotApiFormat?: string;
-  // 通用认证绑定
-  authBinding?: AuthBinding;
   // Claude 认证字段名
   apiKeyField?: ClaudeApiKeyField;
   // 是否将 base_url 视为完整 API 端点（代理直接使用此 URL，不拼接路径）
@@ -214,8 +201,6 @@ export interface ProviderMeta {
   // Session-based prompt-cache routing for Codex Responses -> Chat conversions.
   // auto enables only for known-compatible upstreams; enabled/disabled are user overrides.
   promptCacheRouting?: PromptCacheRoutingMode;
-  // Codex OAuth FAST mode: injects service_tier="priority" on ChatGPT Codex requests
-  codexFastMode?: boolean;
   // Codex Responses -> Chat Completions reasoning capability metadata
   codexChatReasoning?: CodexChatReasoning;
   // Codex → Anthropic path: emulate the Claude Code client (disabled by default; only an explicit true enables it)
@@ -234,10 +219,6 @@ export interface ProviderMeta {
   liveConfigManaged?: boolean;
   // Source format is needed for package-less OpenCode built-in overrides.
   opencodeConfigFormat?: "v1" | "v2";
-  // 供应商类型（用于识别 Copilot 等特殊供应商）
-  providerType?: string;
-  // GitHub Copilot 关联账号 ID（旧字段，保留兼容读取）
-  githubAccountId?: string;
   // Stack 模式下这家 Claude Code 供应商发布的模型；没有时按模型映射发布，空列表什么都不发布
   stackModels?: ClaudeStackModel[];
 }

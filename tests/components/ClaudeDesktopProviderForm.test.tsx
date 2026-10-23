@@ -6,69 +6,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ClaudeDesktopProviderForm } from "@/components/providers/forms/ClaudeDesktopProviderForm";
 import { createTestQueryClient } from "../utils/testQueryClient";
 
-const authState = vi.hoisted(() => ({
-  codexReauthRequired: false,
-}));
 const toastMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
-const modelFetchMocks = vi.hoisted(() => ({
-  fetchCodexOauthModels: vi.fn(),
-}));
-
-vi.mock("@/lib/api/model-fetch", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/model-fetch")>();
-  return {
-    ...actual,
-    fetchCodexOauthModels: modelFetchMocks.fetchCodexOauthModels,
-  };
-});
 
 vi.mock("sonner", () => ({
   toast: {
     error: toastMocks.error,
     success: vi.fn(),
   },
-}));
-
-vi.mock("@/components/providers/forms/hooks", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/providers/forms/hooks")>();
-  return {
-    ...actual,
-    useCopilotAuth: () => ({
-      isAuthenticated: false,
-      accounts: [],
-    }),
-    useCodexOauth: () => ({
-      isAuthenticated: true,
-      defaultAccountId: "acct-managed",
-      accounts: [
-        {
-          id: "acct-managed",
-          is_default: true,
-          reauth_required: authState.codexReauthRequired,
-          requires_reauth: false,
-        },
-      ],
-    }),
-    useXaiOauth: () => ({
-      isAuthenticated: false,
-      accounts: [],
-    }),
-  };
-});
-
-vi.mock("@/components/providers/forms/CodexOAuthSection", () => ({
-  CodexOAuthSection: () => <div data-testid="codex-oauth-section" />,
-}));
-
-vi.mock("@/components/providers/forms/CopilotAuthSection", () => ({
-  CopilotAuthSection: () => <div data-testid="copilot-auth-section" />,
-}));
-
-vi.mock("@/components/providers/forms/XaiOAuthSection", () => ({
-  XaiOAuthSection: () => <div data-testid="xai-oauth-section" />,
 }));
 
 vi.mock("@/lib/api/providers", () => ({
@@ -97,96 +43,8 @@ function renderForm(
 
 describe("ClaudeDesktopProviderForm", () => {
   beforeEach(() => {
-    authState.codexReauthRequired = false;
     toastMocks.error.mockReset();
-    modelFetchMocks.fetchCodexOauthModels.mockReset();
   });
-
-  it("托管 OAuth 供应商也能获取模型并在映射行里选择（#8426）", async () => {
-    modelFetchMocks.fetchCodexOauthModels.mockResolvedValue([
-      { id: "gpt-5.6", ownedBy: "openai" },
-    ]);
-    renderForm({
-      name: "Codex OAuth Provider",
-      category: "third_party",
-      settingsConfig: { env: {} },
-      meta: {
-        providerType: "codex_oauth",
-        authBinding: {
-          source: "managed_account",
-          authProvider: "codex_oauth",
-          accountId: "acct-managed",
-        },
-        claudeDesktopMode: "proxy",
-        claudeDesktopModelRoutes: {
-          "claude-sonnet-5": { model: "upstream-model" },
-        },
-      },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /获取模型/ }));
-
-    await waitFor(() =>
-      expect(modelFetchMocks.fetchCodexOauthModels).toHaveBeenCalledWith(
-        "acct-managed",
-      ),
-    );
-    await waitFor(() =>
-      expect(
-        screen.getAllByRole("button", { name: "Select model" }).length,
-      ).toBeGreaterThan(0),
-    );
-  });
-
-  it("未登录的 Copilot 获取模型时提示先登录", async () => {
-    renderForm({
-      name: "Copilot Provider",
-      category: "third_party",
-      settingsConfig: { env: {} },
-      meta: {
-        providerType: "github_copilot",
-        claudeDesktopMode: "proxy",
-        claudeDesktopModelRoutes: {
-          "claude-sonnet-5": { model: "claude-sonnet-5" },
-        },
-      },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /获取模型/ }));
-
-    await waitFor(() =>
-      expect(toastMocks.error).toHaveBeenCalledWith("请先登录 GitHub Copilot"),
-    );
-  });
-
-  it.each(["github_copilot", "codex_oauth", "xai_oauth"])(
-    "托管 OAuth %s 即使旧数据是 direct 也强制开启模型映射",
-    (providerType) => {
-      renderForm({
-        name: "Managed OAuth Provider",
-        category: "third_party",
-        settingsConfig: {
-          env: {
-            ANTHROPIC_BASE_URL: "https://api.example.com",
-          },
-        },
-        meta: {
-          providerType,
-          claudeDesktopMode: "direct",
-          apiFormat: "anthropic",
-          claudeDesktopModelRoutes: {
-            "claude-sonnet-5": { model: "upstream-model" },
-          },
-        },
-      });
-
-      const modelModePicker = screen.getByRole("combobox", {
-        name: "接入方式",
-      });
-      expect(modelModePicker).toHaveTextContent("模型映射");
-      expect(modelModePicker).toBeDisabled();
-    },
-  );
 
   it("新建自定义供应商默认使用直连并显示模型列表", () => {
     renderForm(undefined);
@@ -501,68 +359,5 @@ describe("ClaudeDesktopProviderForm", () => {
         model: "claude-sonnet-5",
       },
     });
-  });
-
-  it("不允许保存需要重新登录的 Codex OAuth 账号", async () => {
-    authState.codexReauthRequired = true;
-    const onSubmit = vi.fn();
-    renderForm(
-      {
-        name: "Codex OAuth Provider",
-        category: "third_party",
-        settingsConfig: { env: {} },
-        meta: {
-          providerType: "codex_oauth",
-          authBinding: {
-            source: "managed_account",
-            authProvider: "codex_oauth",
-            accountId: "acct-managed",
-          },
-          claudeDesktopMode: "proxy",
-          claudeDesktopModelRoutes: {
-            "claude-sonnet-5": { model: "upstream-model" },
-          },
-        },
-      },
-      onSubmit,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-
-    await waitFor(() =>
-      expect(toastMocks.error).toHaveBeenCalledWith(
-        "已绑定账号不存在或需要重新登录，请重新选择账号",
-      ),
-    );
-    expect(onSubmit).not.toHaveBeenCalled();
-  });
-
-  it("未选择账号时不允许保存需要重新登录的 Codex OAuth 默认账号", async () => {
-    authState.codexReauthRequired = true;
-    const onSubmit = vi.fn();
-    renderForm(
-      {
-        name: "Codex OAuth Default Account Provider",
-        category: "third_party",
-        settingsConfig: { env: {} },
-        meta: {
-          providerType: "codex_oauth",
-          claudeDesktopMode: "proxy",
-          claudeDesktopModelRoutes: {
-            "claude-sonnet-5": { model: "upstream-model" },
-          },
-        },
-      },
-      onSubmit,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-
-    await waitFor(() =>
-      expect(toastMocks.error).toHaveBeenCalledWith(
-        "已绑定账号不存在或需要重新登录，请重新选择账号",
-      ),
-    );
-    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

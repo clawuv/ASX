@@ -9,10 +9,8 @@ import type { ProviderMeta } from "@/types";
 
 const getEditorView = vi.fn();
 const toastError = vi.fn();
-const copilotMeta: ProviderMeta = {
-  providerType: "github_copilot",
+const responsesMeta: ProviderMeta = {
   apiFormat: "openai_responses",
-  codexCopilotApiFormat: "openai_responses",
 };
 
 vi.mock("@/lib/api", () => ({
@@ -58,7 +56,7 @@ describe("useDraftEditorProjection", () => {
         { config: "a" },
         undefined,
         apply,
-        copilotMeta,
+        responsesMeta,
       );
       result.current.projectDraft({ config: "b" }, "official", apply);
     });
@@ -68,7 +66,7 @@ describe("useDraftEditorProjection", () => {
       { config: "a" },
       undefined,
       undefined,
-      copilotMeta,
+      responsesMeta,
     );
     expect(getEditorView).toHaveBeenLastCalledWith(
       "codex",
@@ -147,7 +145,7 @@ describe("useDraftEditorProjection", () => {
   });
 
   it.each(["app change", "receiver change", "unmount"])(
-    "discards a pending Copilot projection after a form lifecycle %s",
+    "discards a pending projection after a form lifecycle %s",
     async (lifecycle) => {
       const pending = deferred<{ settings: Record<string, unknown> }>();
       getEditorView.mockReturnValueOnce(pending.promise);
@@ -163,10 +161,10 @@ describe("useDraftEditorProjection", () => {
       );
       act(() => {
         result.current.projectDraft(
-          { config: "copilot" },
+          { config: "responses" },
           "third_party",
           apply,
-          copilotMeta,
+          responsesMeta,
         );
       });
       if (lifecycle === "app change") {
@@ -177,7 +175,7 @@ describe("useDraftEditorProjection", () => {
         unmount();
       }
       await act(async () => {
-        pending.resolve({ settings: { config: "old Copilot projection" } });
+        pending.resolve({ settings: { config: "old projection" } });
         await pending.promise;
       });
       expect(apply).not.toHaveBeenCalled();

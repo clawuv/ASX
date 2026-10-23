@@ -310,14 +310,12 @@ pub fn is_official_provider(provider: &Provider) -> bool {
     provider.id == CLAUDE_DESKTOP_OFFICIAL_PROVIDER_ID
 }
 
-/// 这张卡在直连模式下写不进去，要经本地路由：模型映射卡（上游模型名 Desktop 不认）、托管
-/// OAuth（凭据由路由注入）。和前端 `providerNeedsRouting`、托盘的 `provider_needs_routing`
-/// 是同一条规则。卡片上的 `claudeDesktopMode` 只说明这张卡是哪种，不再决定 Desktop 的模式
+/// 这张卡在直连模式下写不进去，要经本地路由：模型映射卡（上游模型名 Desktop 不认）。和前端
+/// `providerNeedsRouting`、托盘的 `provider_needs_routing` 是同一条规则。卡片上的
+/// `claudeDesktopMode` 只说明这张卡是哪种，不再决定 Desktop 的模式
 /// （模式在 `live-state.json`，见 `mode::controller`）。
 pub fn needs_routing(provider: &Provider) -> bool {
-    !is_official_provider(provider)
-        && (matches!(provider_mode(provider), ClaudeDesktopMode::Proxy)
-            || is_managed_oauth_proxy_provider(provider))
+    !is_official_provider(provider) && matches!(provider_mode(provider), ClaudeDesktopMode::Proxy)
 }
 
 /// 升级前旧版的状态：直连指针是模型映射卡（旧版按卡片决定模式，这张卡生效时 Desktop 指着
@@ -482,17 +480,6 @@ pub fn validate_direct_provider(provider: &Provider) -> Result<(), AppError> {
             ));
         }
 
-        if matches!(
-            meta.provider_type.as_deref(),
-            Some("github_copilot") | Some("codex_oauth") | Some("xai_oauth")
-        ) {
-            return Err(AppError::localized(
-                "claude_desktop.provider.type_unsupported",
-                "Claude Desktop 直连模式不支持需要本地代理转换的供应商",
-                "Claude Desktop direct mode does not support providers that require local proxy conversion",
-            ));
-        }
-
         if meta.is_full_url == Some(true) {
             return Err(AppError::localized(
                 "claude_desktop.provider.full_url_unsupported",
@@ -559,10 +546,6 @@ fn has_proxy_base_url_and_key(provider: &Provider) -> bool {
         .map(str::trim)
         .is_some_and(|value| !value.is_empty());
 
-    if is_managed_oauth_proxy_provider(provider) {
-        return has_base_url;
-    }
-
     let has_key = env
         .and_then(|value| {
             [
@@ -582,19 +565,6 @@ fn has_proxy_base_url_and_key(provider: &Provider) -> bool {
         .is_some_and(|value| !value.is_empty());
 
     has_base_url && has_key
-}
-
-fn is_managed_oauth_proxy_provider(provider: &Provider) -> bool {
-    provider
-        .meta
-        .as_ref()
-        .and_then(|meta| meta.provider_type.as_deref())
-        .is_some_and(|provider_type| {
-            matches!(
-                provider_type,
-                "github_copilot" | "codex_oauth" | "xai_oauth"
-            )
-        })
 }
 
 pub fn validate_provider(provider: &Provider) -> Result<(), AppError> {
@@ -1804,34 +1774,6 @@ mod tests {
         provider
     }
 
-    fn oauth_proxy_provider(id: &str, provider_type: &str, api_format: &str) -> Provider {
-        let mut provider = Provider::with_id(
-            id.to_string(),
-            "OAuth Proxy".to_string(),
-            json!({
-                "env": {
-                    "ANTHROPIC_BASE_URL": "https://oauth-upstream.example.com"
-                }
-            }),
-            Some("https://example.com".to_string()),
-        );
-        provider.meta = Some(ProviderMeta {
-            claude_desktop_mode: Some(ClaudeDesktopMode::Proxy),
-            api_format: Some(api_format.to_string()),
-            provider_type: Some(provider_type.to_string()),
-            claude_desktop_model_routes: std::collections::HashMap::from([(
-                "claude-sonnet-4-6".to_string(),
-                ClaudeDesktopModelRoute {
-                    model: "gpt-5.4".to_string(),
-                    label_override: Some("GPT-5.4".to_string()),
-                    supports_1m: Some(false),
-                },
-            )]),
-            ..Default::default()
-        });
-        provider
-    }
-
     fn direct_provider_with_models(id: &str) -> Provider {
         let mut provider = direct_provider(id);
         provider.meta = Some(ProviderMeta {
@@ -2037,33 +1979,6 @@ mod tests {
             json!([{ "name": "claude-sonnet-4-6", "labelOverride": "Kimi K2", "supports1m": true, "prefer1m": true }])
         );
         assert!(!profile.to_string().contains("kimi-k2"));
-    }
-
-    #[test]
-    fn claude_desktop_proxy_accepts_managed_oauth_providers_without_static_key() {
-        for (provider_type, api_format) in [
-            ("github_copilot", "openai_chat"),
-            ("codex_oauth", "openai_responses"),
-            ("xai_oauth", "openai_responses"),
-        ] {
-            let provider = oauth_proxy_provider(provider_type, provider_type, api_format);
-            validate_proxy_provider(&provider).expect("oauth proxy provider should validate");
-
-            let temp = TempDir::new().expect("tempdir");
-            let paths = test_paths(temp.path());
-            let db = test_db();
-            apply_provider_to_paths(&db, &provider, &paths).expect("apply oauth proxy provider");
-
-            let profile: Value = read_json_file(&paths.profile_path).expect("read profile");
-            assert_eq!(
-                profile["inferenceGatewayBaseUrl"],
-                json!("http://127.0.0.1:15721/claude-desktop")
-            );
-            assert_eq!(
-                profile["inferenceModels"],
-                json!([{ "name": "claude-sonnet-4-6", "labelOverride": "GPT-5.4" }])
-            );
-        }
     }
 
     #[test]
@@ -2813,13 +2728,6 @@ mod tests {
             ..Default::default()
         });
         assert!(!is_compatible_direct_provider(&openai_format));
-
-        let mut copilot = direct_provider("copilot");
-        copilot.meta = Some(ProviderMeta {
-            provider_type: Some("github_copilot".to_string()),
-            ..Default::default()
-        });
-        assert!(!is_compatible_direct_provider(&copilot));
 
         let mut full_url = direct_provider("full_url");
         full_url.meta = Some(ProviderMeta {

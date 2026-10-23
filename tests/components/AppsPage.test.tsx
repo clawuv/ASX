@@ -167,8 +167,11 @@ async function renderApps() {
   // label to be shown, including when a pending dialog hides the page itself.
   await waitFor(() =>
     expect(
-      within(view.container).getByText("appsPage.checkUpdates"),
-    ).toHaveAttribute("aria-hidden", "false"),
+      within(view.container).getByRole("button", {
+        name: "appsPage.checkUpdates",
+        hidden: true,
+      }),
+    ).toBeInTheDocument(),
   );
   return view;
 }
@@ -1290,7 +1293,9 @@ describe("AppsPage concurrent CLI upgrades", () => {
     });
     const { AppsPage } = await import("@/components/apps/AppsPage");
     const view = mountApps(AppsPage);
-    await waitFor(() => expect(mocks.getToolVersions).toHaveBeenCalledTimes(10));
+    await waitFor(() =>
+      expect(mocks.getToolVersions).toHaveBeenCalledTimes(10),
+    );
     view.unmount();
     const remounted = await renderApps();
     fireEvent.click(updateButton("Claude Code"));

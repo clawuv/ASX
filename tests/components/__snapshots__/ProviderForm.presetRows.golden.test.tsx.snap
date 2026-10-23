@@ -215,6 +215,66 @@ model_auto_compact_token_limit = 9000000",
 }
 `;
 
+exports[`ProviderForm 预设新增行金标 > codex > Kimi 1`] = `
+{
+  "apiKeyLocations": [
+    "settingsConfig.auth.OPENAI_API_KEY",
+  ],
+  "row": {
+    "icon": "kimi",
+    "iconColor": "#6366F1",
+    "meta": {
+      "apiFormat": "openai_responses",
+      "endpointAutoSelect": true,
+    },
+    "name": "Kimi",
+    "notes": "",
+    "presetCategory": "cn_official",
+    "presetId": "codex-<index>",
+    "settingsConfig": {
+      "auth": {
+        "OPENAI_API_KEY": "sk-golden-test",
+      },
+      "config": "model_provider = "custom"
+model = "kimi-k3"
+model_reasoning_effort = "high"
+disable_response_storage = true
+
+[model_providers.custom]
+name = "kimi"
+base_url = "https://api.moonshot.cn/v1"
+wire_api = "responses"
+requires_openai_auth = true",
+      "modelCatalog": {
+        "models": [
+          {
+            "contextWindow": 1048576,
+            "displayName": "Kimi K3",
+            "model": "kimi-k3",
+            "reasoningLevels": [
+              "low",
+              "high",
+              "max",
+            ],
+            "supportsParallelToolCalls": true,
+          },
+          {
+            "contextWindow": 262144,
+            "displayName": "Kimi K2.7 Code",
+            "model": "kimi-k2.7-code",
+            "reasoningLevels": [
+              "high",
+            ],
+            "supportsParallelToolCalls": true,
+          },
+        ],
+      },
+    },
+    "websiteUrl": "https://platform.kimi.com?track_id=track-7cf2b91dcde043eda6ef9a95951a042c&aff=cc-switch",
+  },
+}
+`;
+
 exports[`ProviderForm 预设新增行金标 > codex > Nvidia 1`] = `
 {
   "apiKeyLocations": [
@@ -296,78 +356,6 @@ exports[`ProviderForm 预设新增行金标 > codex > OpenAI Official 1`] = `
       "config": "",
     },
     "websiteUrl": "https://chatgpt.com/codex",
-  },
-}
-`;
-
-exports[`ProviderForm 预设新增行金标 > codex > xAI (Grok) 1`] = `
-{
-  "apiKeyLocations": [
-    "settingsConfig.auth.OPENAI_API_KEY",
-  ],
-  "row": {
-    "icon": "xai",
-    "iconColor": "#000000",
-    "meta": {
-      "apiFormat": "openai_responses",
-      "endpointAutoSelect": true,
-    },
-    "name": "xAI (Grok)",
-    "notes": "",
-    "presetCategory": "third_party",
-    "presetId": "codex-<index>",
-    "settingsConfig": {
-      "auth": {
-        "OPENAI_API_KEY": "sk-golden-test",
-      },
-      "config": "model_provider = "custom"
-model = "grok-4.5"
-model_reasoning_effort = "high"
-disable_response_storage = true
-
-[model_providers.custom]
-name = "xai"
-base_url = "https://api.x.ai/v1"
-wire_api = "responses"
-requires_openai_auth = true",
-      "modelCatalog": {
-        "models": [
-          {
-            "contextWindow": 500000,
-            "displayName": "Grok 4.7",
-            "inputModalities": [
-              "text",
-              "image",
-            ],
-            "model": "grok-4.7",
-            "reasoningLevels": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-            ],
-            "supportsParallelToolCalls": true,
-          },
-          {
-            "contextWindow": 500000,
-            "displayName": "Grok 4.5",
-            "inputModalities": [
-              "text",
-              "image",
-            ],
-            "model": "grok-4.5",
-            "reasoningLevels": [
-              "low",
-              "medium",
-              "high",
-              "xhigh",
-            ],
-            "supportsParallelToolCalls": true,
-          },
-        ],
-      },
-    },
-    "websiteUrl": "https://x.ai/api",
   },
 }
 `;

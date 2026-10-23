@@ -276,6 +276,7 @@ describe("ProviderList Component", () => {
     expect(useDragSortMock).toHaveBeenCalledWith(
       { a: providerA, b: providerB },
       "claude",
+      "b",
     );
   });
 

@@ -424,54 +424,6 @@ describe("useProviderActions", () => {
     expect(switchProviderMutateAsync).toHaveBeenCalledTimes(3);
   });
 
-  it("warns for managed OAuth until the current Code app is taken over", async () => {
-    switchProviderMutateAsync.mockResolvedValueOnce(undefined);
-    const { wrapper } = createWrapper();
-    const provider = createProvider({
-      category: "custom",
-      meta: {
-        providerType: "codex_oauth",
-        apiFormat: "openai_responses",
-      },
-    });
-
-    const { result } = renderHook(() => useProviderActions("codex", false), {
-      wrapper,
-    });
-
-    await act(async () => {
-      await result.current.switchProvider(provider);
-    });
-
-    expect(toastWarningMock).toHaveBeenCalledWith(
-      expect.stringContaining("托管 OAuth"),
-    );
-    expect(switchProviderMutateAsync).toHaveBeenCalledWith(provider.id);
-  });
-
-  it("does not warn for managed OAuth after the current Code app is taken over", async () => {
-    switchProviderMutateAsync.mockResolvedValueOnce(undefined);
-    const { wrapper } = createWrapper();
-    const provider = createProvider({
-      category: "custom",
-      meta: {
-        providerType: "codex_oauth",
-        apiFormat: "openai_responses",
-      },
-    });
-
-    const { result } = renderHook(() => useProviderActions("codex", true), {
-      wrapper,
-    });
-
-    await act(async () => {
-      await result.current.switchProvider(provider);
-    });
-
-    expect(toastWarningMock).not.toHaveBeenCalled();
-    expect(switchProviderMutateAsync).toHaveBeenCalledWith(provider.id);
-  });
-
   it("does not warn for a Claude Desktop mapping card while Desktop is in route mode", async () => {
     switchProviderMutateAsync.mockResolvedValue(undefined);
     const { wrapper } = createWrapper();
@@ -559,14 +511,7 @@ describe("useProviderActions", () => {
       id: "generated-uuid",
       category: "official",
       settingsConfig: { auth: {}, config: "" },
-      meta: {
-        providerType: "codex_oauth",
-        authBinding: {
-          source: "managed_account",
-          authProvider: "codex_oauth",
-          accountId: "acct-managed",
-        },
-      },
+      meta: {},
     });
     const { result } = renderHook(() => useProviderActions("codex", true), {
       wrapper,

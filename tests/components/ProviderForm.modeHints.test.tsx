@@ -31,23 +31,6 @@ vi.mock("@/components/providers/forms/CodexConfigEditor", () => ({
   default: () => <div data-testid="codex-config-editor" />,
 }));
 
-vi.mock("@/components/providers/forms/hooks", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/providers/forms/hooks")>();
-  const signedOut = {
-    isAuthenticated: false,
-    isStatusSuccess: true,
-    isStatusError: false,
-    accounts: [],
-  };
-  return {
-    ...actual,
-    useCopilotAuth: () => signedOut,
-    useCodexOauth: () => signedOut,
-    useXaiOauth: () => signedOut,
-  };
-});
-
 const IN_USE =
   "这张卡正在直连使用：改成这种格式后保存，请求会失败。请先切到路由或聚合。";
 const SWITCH = "直连模式下用不了这种格式，切到路由或聚合后才能用这张卡。";
@@ -221,24 +204,6 @@ describe("完整表单按实际模式提示（Claude Code）", () => {
 
     expect(document.getElementById("apiFormat")).not.toBeNull();
     expect(screen.queryByText("认证字段")).toBeNull();
-  });
-
-  it("Codex 托管账号卡不显示后端固定的地址、格式和认证字段", () => {
-    modeState.mode = "route";
-    renderClaude({ providerType: "codex_oauth" });
-    expandClaudeAdvanced();
-
-    expect(document.getElementById("baseUrl")).toBeNull();
-    expect(document.getElementById("apiFormat")).toBeNull();
-    expect(screen.queryByText("认证字段")).toBeNull();
-  });
-
-  it("Copilot 卡不显示会被转发跳过的 UA 和请求覆盖", () => {
-    modeState.mode = "route";
-    renderClaude(undefined, "https://api.githubcopilot.com");
-    expandClaudeAdvanced();
-
-    expect(document.getElementById("claude-custom-user-agent")).toBeNull();
   });
 });
 

@@ -21,24 +21,6 @@ vi.mock("@/components/JsonEditor", () => ({
     <textarea readOnly value={value} />
   ),
 }));
-vi.mock("@/components/providers/forms/hooks", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/providers/forms/hooks")>();
-  return {
-    ...actual,
-    useCopilotAuth: () => ({
-      isAuthenticated: false,
-      isStatusSuccess: true,
-      accounts: [],
-    }),
-    useCodexOauth: () => ({
-      isAuthenticated: false,
-      isStatusSuccess: true,
-      accounts: [],
-    }),
-    useXaiOauth: () => ({ isAuthenticated: false, accounts: [] }),
-  };
-});
 
 const base = {
   baseUrl: "https://example.invalid/v1",

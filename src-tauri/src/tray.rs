@@ -869,25 +869,7 @@ fn quota_note(
     }
 }
 
-fn managed_codex_account_id(provider: &Provider) -> Option<String> {
-    if crate::proxy::providers::is_codex_official_provider(provider) {
-        return provider
-            .meta
-            .as_ref()
-            .and_then(|meta| meta.managed_account_id_for("codex_oauth"))
-            .map(|id| id.trim().to_string())
-            .filter(|id| !id.is_empty());
-    }
-    None
-}
-
 fn provider_uses_official_subscription(provider: &Provider) -> bool {
-    // Managed Codex uses the account-scoped path in tray_usage_source instead
-    // of the CLI's app-wide subscription cache.
-    if managed_codex_account_id(provider).is_some() {
-        return false;
-    }
-
     provider
         .meta
         .as_ref()
@@ -901,29 +883,14 @@ fn provider_uses_official_subscription(provider: &Provider) -> bool {
 
 #[derive(Debug, PartialEq, Eq)]
 enum TrayUsageSource {
-    ManagedCodex(String),
     /// 客户端自己登录的官方订阅：和供应商卡片读写同一份应用级订阅缓存。
     Subscription,
     Script,
 }
 
 /// Keep the tray's refresh and display paths on the same credentials and toggle.
-fn tray_usage_source(app_type: &AppType, provider: &Provider) -> Option<TrayUsageSource> {
-    if *app_type == AppType::Codex {
-        if let Some(account_id) = managed_codex_account_id(provider) {
-            // Match ProviderCard: managed accounts query by default until the
-            // user explicitly disables usage, including older saved providers.
-            let enabled = provider
-                .meta
-                .as_ref()
-                .and_then(|meta| meta.usage_script.as_ref())
-                .map(|script| script.enabled)
-                .unwrap_or(true);
-            return enabled.then_some(TrayUsageSource::ManagedCodex(account_id));
-        }
-    }
-    // xAI OAuth 的额度属于绑定的 SuperGrok 账号，不是所在应用的客户端登录，仍走脚本路径。
-    if provider_uses_official_subscription(provider) && !provider.is_xai_oauth() {
+fn tray_usage_source(_app_type: &AppType, provider: &Provider) -> Option<TrayUsageSource> {
+    if provider_uses_official_subscription(provider) {
         return Some(TrayUsageSource::Subscription);
     }
     (provider.has_usage_script_enabled()
@@ -944,10 +911,7 @@ fn usage_view(
     // 当前脚本是否启用：禁用/删除时不再沿用旧 UsageCache 结果，
     // 并顺手 invalidate，防止后续重建继续命中过期数据。
     let source = tray_usage_source(app_type, provider);
-    if !matches!(
-        source,
-        Some(TrayUsageSource::ManagedCodex(_) | TrayUsageSource::Subscription)
-    ) {
+    if source.as_ref() != Some(&TrayUsageSource::Subscription) {
         // 在用的不是客户端自己的订阅：应用级订阅缓存是别家留下的，不能沿用。
         usage_cache.invalidate_subscription(app_type);
     }
@@ -967,13 +931,6 @@ fn cached_usage_view(
     provider_id: &str,
     source: Option<&TrayUsageSource>,
 ) -> Option<QuotaView> {
-    if let Some(TrayUsageSource::ManagedCodex(account_id)) = source {
-        // No fallback: a missing account snapshot must not display another
-        // account's quota from a provider cache or the CLI subscription cache.
-        return usage_cache
-            .with_codex_oauth(account_id, |quota| format_subscription_quota(texts, quota))
-            .flatten();
-    }
     if source == Some(&TrayUsageSource::Subscription) {
         // 只读订阅缓存：卡片查到的和托盘悬停查到的都写在这里，两边不会各说各的。
         return usage_cache
@@ -990,8 +947,6 @@ fn cached_usage_view(
 }
 
 // ─── 「需要路由」判定（镜像前端 `providerNeedsRouting`）──────────────────────────────
-
-const MANAGED_OAUTH_PROVIDER_TYPES: &[&str] = &["github_copilot", "codex_oauth", "xai_oauth"];
 
 /// 官方账号卡（同前端 `isOfficialAccount`）：Codex 早期绑定托管账号的官方卡没有 category，按身份认。
 fn is_official_account(app: &AppType, provider: &Provider) -> bool {
@@ -1060,26 +1015,17 @@ pub(crate) fn provider_needs_routing(app: &AppType, provider: &Provider) -> bool
         return false;
     }
     let meta = provider.meta.as_ref();
-    let managed_oauth = meta
-        .and_then(|meta| meta.provider_type.as_deref())
-        .is_some_and(|kind| MANAGED_OAUTH_PROVIDER_TYPES.contains(&kind));
     let full_url = meta.and_then(|meta| meta.is_full_url) == Some(true);
     let api_format = meta
         .and_then(|meta| meta.api_format.as_deref())
         .filter(|fmt| !fmt.is_empty());
     match app {
-        AppType::ClaudeDesktop => {
-            managed_oauth
-                || meta
-                    .and_then(|meta| meta.claude_desktop_mode.as_ref())
-                    .is_some_and(|mode| *mode == crate::provider::ClaudeDesktopMode::Proxy)
-        }
-        AppType::Claude => {
-            managed_oauth || full_url || api_format.is_some_and(|f| f != "anthropic")
-        }
+        AppType::ClaudeDesktop => meta
+            .and_then(|meta| meta.claude_desktop_mode.as_ref())
+            .is_some_and(|mode| *mode == crate::provider::ClaudeDesktopMode::Proxy),
+        AppType::Claude => full_url || api_format.is_some_and(|f| f != "anthropic"),
         AppType::Codex | AppType::GrokBuild => {
-            managed_oauth
-                || full_url
+            full_url
                 || matches!(api_format, Some("openai_chat" | "anthropic"))
                 || provider
                     .settings_config
@@ -2164,9 +2110,6 @@ fn cached_reset_credits(
             .map(|credits| credits.expires_at.len())
     };
     match source? {
-        TrayUsageSource::ManagedCodex(account_id) => {
-            usage_cache.with_codex_oauth(account_id, count).flatten()
-        }
         TrayUsageSource::Subscription => usage_cache.with_subscription(app_type, count).flatten(),
         TrayUsageSource::Script => None,
     }
@@ -3103,7 +3046,6 @@ pub fn schedule_tray_refresh(app: &tauri::AppHandle) {
 /// `TRAY_APPS.len()` 个用量查询；按供应商用量开关查询，Codex 托管账号
 /// 未保存开关时与卡片一致默认启用。
 pub(crate) async fn refresh_all_usage_in_tray(app: &tauri::AppHandle) {
-    use crate::commands::CopilotAuthState;
     use futures::future::join_all;
 
     {
@@ -3164,23 +3106,10 @@ pub(crate) async fn refresh_all_usage_in_tray(app: &tauri::AppHandle) {
         if let Some(source) = tray_usage_source(app_type, &current) {
             let app_clone = app.clone();
             let state = app.state::<AppState>();
-            let copilot_state = app.state::<CopilotAuthState>();
-            let xai_state = app.state::<crate::commands::XaiOAuthState>();
             let provider_id = current_id.clone();
             let app_str = app_type_str.to_string();
             usage_futures.push(async move {
                 let result = match source {
-                    TrayUsageSource::ManagedCodex(account_id) => {
-                        let codex_state = app.state::<crate::commands::CodexOAuthState>();
-                        crate::commands::get_codex_oauth_quota(
-                            app_clone,
-                            state,
-                            Some(account_id),
-                            codex_state,
-                        )
-                        .await
-                        .map(|_| ())
-                    }
                     TrayUsageSource::Subscription => {
                         crate::commands::get_subscription_quota(app_clone, state, app_str)
                             .await
@@ -3189,8 +3118,6 @@ pub(crate) async fn refresh_all_usage_in_tray(app: &tauri::AppHandle) {
                     TrayUsageSource::Script => crate::commands::queryProviderUsage(
                         app_clone,
                         state,
-                        copilot_state,
-                        xai_state,
                         provider_id.clone(),
                         app_str,
                     )
@@ -3216,7 +3143,6 @@ static PANEL_SCRIPT_QUERIES: Lazy<Mutex<HashMap<(AppType, String), std::time::In
 /// 后台补查一次——和主界面供应商卡片是同一个查询，结果写进 `UsageCache` 后面板跟着刷新。
 /// 自动查询间隔为 0（关掉了）的不查；在用的那家由 `refresh_all_usage_in_tray` 负责。
 pub(crate) async fn refresh_panel_provider_usage(app: &tauri::AppHandle) {
-    use crate::commands::CopilotAuthState;
     use futures::future::join_all;
 
     let Some(app_state) = app.try_state::<AppState>() else {
@@ -3274,8 +3200,6 @@ pub(crate) async fn refresh_panel_provider_usage(app: &tauri::AppHandle) {
             let result = crate::commands::queryProviderUsage(
                 app.clone(),
                 app.state::<AppState>(),
-                app.state::<CopilotAuthState>(),
-                app.state::<crate::commands::XaiOAuthState>(),
                 provider_id.clone(),
                 app_type.as_str().to_string(),
             )
@@ -3792,114 +3716,6 @@ mod tests {
     }
 
     #[test]
-    fn managed_codex_quota_stays_out_of_the_app_wide_tray_cache() {
-        let provider = |id| codex_provider(id, Some(true));
-        assert!(!provider_uses_official_subscription(&provider(Some(
-            "account-1"
-        ))));
-        assert!(provider_uses_official_subscription(&provider(None)));
-    }
-
-    #[test]
-    fn managed_codex_tray_refresh_respects_binding_and_usage_toggle() {
-        for enabled in [Some(true), None] {
-            let provider = codex_provider(Some("account-1"), enabled);
-            assert_eq!(
-                tray_usage_source(&AppType::Codex, &provider),
-                Some(TrayUsageSource::ManagedCodex("account-1".to_string()))
-            );
-        }
-        let disabled = codex_provider(Some("account-1"), Some(false));
-        assert_eq!(tray_usage_source(&AppType::Codex, &disabled), None);
-
-        let mut fixed = codex_provider(Some("account-1"), Some(true));
-        fixed.id = crate::database::CODEX_OFFICIAL_PROVIDER_ID.to_string();
-        assert_eq!(
-            tray_usage_source(&AppType::Codex, &fixed),
-            Some(TrayUsageSource::ManagedCodex("account-1".to_string()))
-        );
-        assert_eq!(
-            tray_usage_source(&AppType::Codex, &codex_provider(None, Some(true))),
-            Some(TrayUsageSource::Subscription)
-        );
-        let mut legacy = codex_provider(Some(" account-1 "), None);
-        legacy.category = None;
-        assert_eq!(
-            tray_usage_source(&AppType::Codex, &legacy),
-            Some(TrayUsageSource::ManagedCodex("account-1".to_string()))
-        );
-    }
-
-    #[test]
-    fn managed_codex_tray_uses_bound_account_after_switch_or_rebind() {
-        let cache = UsageCache::new();
-        let texts = en();
-        let first = codex_provider(Some("account-1"), Some(true));
-        let mut second = codex_provider(Some("account-2"), Some(true));
-        second.id = "second-provider".to_string();
-        let label = |provider: &Provider| {
-            title(usage_view(
-                &cache,
-                &texts,
-                &AppType::Codex,
-                provider,
-                &provider.id,
-            ))
-            .map(|(text, _)| text)
-        };
-        cache.put_subscription(
-            AppType::Codex,
-            make_quota("codex", true, vec![tier(TIER_FIVE_HOUR, 99.0)]),
-        );
-        cache.put_script(
-            AppType::Codex,
-            first.id.clone(),
-            usage_result(true, vec![usage_data(Some(TIER_FIVE_HOUR), 99.0)]),
-        );
-        // Neither CLI nor stale provider-scoped data may fill an account miss.
-        assert_eq!(label(&first), None);
-        cache.put_codex_oauth(
-            "account-1".to_string(),
-            make_quota("codex_oauth", true, vec![tier(TIER_FIVE_HOUR, 12.0)]),
-        );
-        assert_eq!(label(&first).as_deref(), Some("5-hour 88% left"));
-        assert_eq!(label(&second), None);
-        cache.put_codex_oauth(
-            "account-2".to_string(),
-            make_quota("codex_oauth", true, vec![tier(TIER_FIVE_HOUR, 25.0)]),
-        );
-        assert_eq!(label(&second).as_deref(), Some("5-hour 75% left"));
-        // Rebinding the same provider must select the new account's snapshot.
-        second.id = first.id.clone();
-        assert_eq!(label(&second).as_deref(), Some("5-hour 75% left"));
-        // A late response for the previous account cannot overwrite this label.
-        cache.put_codex_oauth(
-            "account-1".to_string(),
-            make_quota("codex_oauth", true, vec![tier(TIER_FIVE_HOUR, 40.0)]),
-        );
-        assert_eq!(label(&second).as_deref(), Some("5-hour 75% left"));
-        assert_eq!(label(&first).as_deref(), Some("5-hour 60% left"));
-
-        let disabled = codex_provider(Some("account-2"), Some(false));
-        assert_eq!(label(&disabled), None);
-        assert_eq!(label(&second).as_deref(), Some("5-hour 75% left"));
-        cache.put_codex_oauth(
-            "account-2".to_string(),
-            SubscriptionQuota::error(
-                "codex_oauth",
-                CredentialStatus::Expired,
-                "expired".to_string(),
-            ),
-        );
-        assert_eq!(label(&second), None);
-        assert_eq!(
-            usage_view(&cache, &texts, &AppType::Codex, &second, &second.id),
-            Some(QuotaView::Failed(QuotaFailure::LoginExpired))
-        );
-        assert_eq!(label(&first).as_deref(), Some("5-hour 60% left"));
-    }
-
-    #[test]
     fn native_codex_tray_still_uses_cli_subscription() {
         let cache = UsageCache::new();
         let mut native = codex_provider(None, Some(true));
@@ -3963,18 +3779,6 @@ mod tests {
             title(view()).map(|(text, _)| text).as_deref(),
             Some("5-hour 75% left")
         );
-
-        // xAI OAuth 的额度属于绑定的 SuperGrok 账号：仍走脚本路径，也不沿用应用级订阅缓存。
-        let mut xai = codex_provider(None, Some(true));
-        xai.meta.as_mut().unwrap().provider_type = Some("xai_oauth".to_string());
-        assert_eq!(
-            tray_usage_source(&AppType::Claude, &xai),
-            Some(TrayUsageSource::Script)
-        );
-        assert_eq!(
-            title(usage_view(&cache, &en(), &AppType::Claude, &xai, "xai")),
-            None
-        );
     }
 
     // ─── 「需要路由」判定（和前端 providerNeedsRouting 对照）───
@@ -3995,20 +3799,6 @@ mod tests {
         for app in TRAY_APPS {
             assert!(!provider_needs_routing(&app, &plain), "{app:?}");
         }
-
-        let copilot = provider(
-            serde_json::json!({"providerType": "github_copilot"}),
-            serde_json::json!({}),
-        );
-        for app in [
-            AppType::Claude,
-            AppType::ClaudeDesktop,
-            AppType::Codex,
-            AppType::GrokBuild,
-        ] {
-            assert!(provider_needs_routing(&app, &copilot), "{app:?}");
-        }
-        assert!(!provider_needs_routing(&AppType::Gemini, &copilot));
 
         let openai_chat = provider(
             serde_json::json!({"apiFormat": "openai_chat"}),
@@ -4051,7 +3841,7 @@ mod tests {
         ));
 
         // 官方卡永远不算。
-        let mut official = copilot.clone();
+        let mut official = openai_chat.clone();
         official.category = Some("official".to_string());
         assert!(!provider_needs_routing(&AppType::Claude, &official));
     }

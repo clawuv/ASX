@@ -9,7 +9,6 @@ import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AddProviderDialog } from "@/components/providers/AddProviderDialog";
 import type { ProviderFormValues } from "@/components/providers/forms/ProviderForm";
-import { codexProviderPresets } from "@/config/codexProviderPresets";
 import { providersApi } from "@/lib/api";
 import type { ProviderEditorView } from "@/lib/api/providers";
 import { usePresetStep } from "@/components/providers/forms/presetStep";
@@ -49,12 +48,10 @@ vi.mock("@/components/providers/forms/ProviderForm", () => ({
   ProviderForm: ({
     onSubmit,
     onSubmitReadyChange,
-    onManageAuthAccounts,
     onEditorBaseChange,
   }: {
     onSubmit: (values: ProviderFormValues) => void;
     onSubmitReadyChange?: (isReady: boolean) => void;
-    onManageAuthAccounts?: (target: "codex_oauth") => void;
     onEditorBaseChange?: (
       base: Record<string, unknown> | null,
       draft?: Record<string, unknown>,
@@ -90,20 +87,9 @@ vi.mock("@/components/providers/forms/ProviderForm", () => ({
               presetStep.host,
             )
           : null}
-        <button
-          type="button"
-          onClick={() => onManageAuthAccounts?.("codex_oauth")}
-        >
-          manage-auth
-        </button>
       </form>
     );
   },
-}));
-
-vi.mock("@/components/providers/AuthSettingsPanel", () => ({
-  AuthSettingsPanel: ({ target }: { target: string | null }) =>
-    target ? <div data-testid="auth-settings-panel">{target}</div> : null,
 }));
 
 describe("AddProviderDialog", () => {
@@ -164,12 +150,10 @@ describe("AddProviderDialog", () => {
     expect(
       screen.getByRole("button", { name: "common.add" }),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "providerPreset.backToPick" }),
-    );
+    // 顶部全局前进/后退接管后，面板页头不再渲染返回按钮。
     expect(
-      screen.getByRole("button", { name: "pick-preset" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "providerPreset.backToPick" }),
+    ).not.toBeInTheDocument();
   });
 
   it("falls back to the form when Claude's live base cannot be read", async () => {
@@ -204,11 +188,11 @@ describe("AddProviderDialog", () => {
     rerender(<AddProviderDialog open {...props} />);
     await act(async () => resolvers[0]({ settings: {}, inactive: [] }));
     expect(
-      screen.queryByRole("button", { name: "manage-auth" }),
+      screen.queryByRole("button", { name: "common.add" }),
     ).not.toBeInTheDocument();
     await act(async () => resolvers[1]({ settings: {}, inactive: [] }));
     expect(
-      screen.getByRole("button", { name: "manage-auth" }),
+      screen.getByRole("button", { name: "common.add" }),
     ).toBeInTheDocument();
   });
 
@@ -226,12 +210,10 @@ describe("AddProviderDialog", () => {
     );
 
     // Claude 的表单要等 live 底读回来才渲染。
-    await screen.findByRole("button", { name: "manage-auth" });
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: "common.add",
-      }),
-    );
+    const addButton = await screen.findByRole("button", {
+      name: "common.add",
+    });
+    fireEvent.click(addButton);
 
     await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1));
 
@@ -265,12 +247,10 @@ describe("AddProviderDialog", () => {
       />,
     );
 
-    await screen.findByRole("button", { name: "manage-auth" });
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: "common.add",
-      }),
-    );
+    const addButton = await screen.findByRole("button", {
+      name: "common.add",
+    });
+    fireEvent.click(addButton);
 
     await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1));
 
@@ -307,10 +287,10 @@ describe("AddProviderDialog", () => {
         />,
       );
 
-      await screen.findByRole("button", { name: "manage-auth" });
-      fireEvent.click(
-        await screen.findByRole("button", { name: "common.add" }),
-      );
+      const addButton = await screen.findByRole("button", {
+        name: "common.add",
+      });
+      fireEvent.click(addButton);
 
       await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1));
       expect(handleSubmit.mock.calls[0][0].editorSave).toEqual({
@@ -339,87 +319,13 @@ describe("AddProviderDialog", () => {
       />,
     );
 
-    await screen.findByRole("button", { name: "manage-auth" });
-    fireEvent.click(await screen.findByRole("button", { name: "common.add" }));
+    const addButton = await screen.findByRole("button", {
+      name: "common.add",
+    });
+    fireEvent.click(addButton);
 
     await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1));
     expect(handleSubmit.mock.calls[0][0].editorSave).toBeUndefined();
-  });
-
-  it("submits the optional managed account from the Codex Official preset", async () => {
-    const handleSubmit = vi.fn().mockResolvedValue(undefined);
-    const officialPresetIndex = codexProviderPresets.findIndex(
-      (preset) =>
-        preset.category === "official" && preset.providerType === "codex_oauth",
-    );
-    expect(officialPresetIndex).toBeGreaterThanOrEqual(0);
-
-    mockFormValues = {
-      name: "OpenAI Official",
-      websiteUrl: "https://chatgpt.com/codex",
-      settingsConfig: JSON.stringify({ auth: {}, config: "" }),
-      presetId: `codex-${officialPresetIndex}`,
-      presetCategory: "official",
-      meta: {
-        providerType: "codex_oauth",
-        authBinding: {
-          source: "managed_account",
-          authProvider: "codex_oauth",
-          accountId: "acct-managed",
-        },
-      },
-    };
-
-    render(
-      <AddProviderDialog
-        open
-        onOpenChange={vi.fn()}
-        appId="codex"
-        onSubmit={handleSubmit}
-      />,
-    );
-
-    fireEvent.click(await screen.findByRole("button", { name: "common.add" }));
-
-    await waitFor(() => expect(handleSubmit).toHaveBeenCalledTimes(1));
-    expect(handleSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        category: "official",
-        meta: expect.objectContaining({
-          authBinding: {
-            source: "managed_account",
-            authProvider: "codex_oauth",
-            accountId: "acct-managed",
-          },
-        }),
-      }),
-    );
-    expect(handleSubmit.mock.calls[0][0]).not.toHaveProperty(
-      "ensureCodexOfficialSeed",
-    );
-  });
-
-  it("clears the nested auth panel before the dialog reopens", async () => {
-    const props = {
-      onOpenChange: vi.fn(),
-      appId: "codex" as const,
-      onSubmit: vi.fn(),
-    };
-    const { rerender } = render(<AddProviderDialog open {...props} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "manage-auth" }));
-    expect(screen.getByTestId("auth-settings-panel")).toHaveTextContent(
-      "codex_oauth",
-    );
-
-    rerender(<AddProviderDialog open={false} {...props} />);
-    rerender(<AddProviderDialog open {...props} />);
-
-    await waitFor(() => {
-      expect(
-        screen.queryByTestId("auth-settings-panel"),
-      ).not.toBeInTheDocument();
-    });
   });
 
   it("新建 Grok Build 自定义供应商时不补默认 Grok 图标", async () => {

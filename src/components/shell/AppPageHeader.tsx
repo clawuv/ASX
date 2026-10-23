@@ -11,7 +11,7 @@ interface AppPageHeaderProps {
   /** 标题前的可操作元素（二级页的返回按钮） */
   leading?: ReactNode;
   title: ReactNode;
-  /** 应用页用 16px 的名字 + 13px 的页面名；全局页和设置用 18px 的页面标题 */
+  /** 保留兼容旧调用；当前页头统一样式 */
   variant?: "app" | "page";
   /** 应用页的页面名（如「供应商」），灰字跟在应用名后面 */
   subtitle?: ReactNode;
@@ -30,7 +30,6 @@ interface AppPageHeaderProps {
 export function AppPageHeader({
   leading,
   title,
-  variant = "page",
   subtitle,
   titleExtra,
   actions,

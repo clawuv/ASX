@@ -83,7 +83,6 @@ describe("Codex preset pre-filled reasoning levels", () => {
     ["Longcat", "LongCat-2.0", ["high"]],
     // xAI Reasoning guide 模型级枚举；grok-4.5 不可关思考故无 none
     ["xAI (Grok)", "grok-4.5", ["low", "medium", "high", "xhigh"]],
-    ["xAI (Grok) OAuth", "grok-4.5", ["low", "medium", "high", "xhigh"]],
     // DeepSeek 直连照抄官方 catalog 镜像（Jason 2026-08-15 拍板：表单可见性
     // 优先，接受快照过时风险——官方目录变更时须同步）
     ["DeepSeek", "deepseek-flash", ["low", "high", "max"]],
@@ -224,11 +223,7 @@ describe("Codex preset pre-filled reasoning levels", () => {
     // llama.cpp 本机（原生 Responses 直连）：Qwen3-Coder 不思考，llama-server 把
     // reasoning_effort 交给模型模板（PR #26941，2026-10-14），该模板不读，照
     // Nebius 先例只钉单档 high
-    [
-      "llama.cpp",
-      "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF",
-      ["high"],
-    ],
+    ["llama.cpp", "ggml-org/Qwen3-Coder-30B-A3B-Instruct-Q8_0-GGUF", ["high"]],
     // vLLM 本机（原生 Responses 直连）：vLLM 用户没设 enable_thinking 时按
     // effort != "none" 开关思考（responses/protocol.py，v0.31.0，2026-10-14），
     // Qwen3.6 模板只有开关，故两态
@@ -262,11 +257,7 @@ describe("Codex preset pre-filled reasoning levels", () => {
     // DeepInfra（原生 Responses 直连）：平台无逐模型档位声明
     //（docs.deepinfra.com/chat/reasoning.md，2026-10-14），退回厂商官方档位，
     // 同 DeepSeek / Kimi / Zhipu GLM 直连预设
-    [
-      "DeepInfra",
-      "deepseek-ai/DeepSeek-V4-Flash-0731",
-      ["low", "high", "max"],
-    ],
+    ["DeepInfra", "deepseek-ai/DeepSeek-V4-Flash-0731", ["low", "high", "max"]],
     ["DeepInfra", "deepseek-ai/DeepSeek-V4-Pro-0813", ["low", "high", "max"]],
     ["DeepInfra", "moonshotai/Kimi-K3", ["low", "high", "max"]],
     ["DeepInfra", "zai-org/GLM-5.3", ["low", "high", "max"]],

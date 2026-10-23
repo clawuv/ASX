@@ -6,7 +6,6 @@ import {
   useState,
   type RefObject,
 } from "react";
-import { isMac } from "@/lib/platform";
 
 /** 窗口窄于这个宽度时侧栏自动收成图标轨（用户手动选过就按手动的来）。 */
 export const SIDEBAR_AUTO_COLLAPSE_WIDTH = 960;

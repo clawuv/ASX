@@ -875,7 +875,7 @@ describe("SwitchModePanel — tray needs-route request", () => {
     const onHandled = vi.fn();
     const copilot: Provider = {
       ...provider("copilot"),
-      meta: { providerType: "github_copilot" },
+      meta: {},
     };
     const queryClient = createTestQueryClient();
     render(

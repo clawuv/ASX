@@ -592,6 +592,11 @@ impl Database {
                         }
                         Self::set_user_version(conn, 21)?;
                     }
+                    21 => {
+                        log::info!("迁移数据库从 v21 到 v22（清理已移除的托管 OAuth 元数据）");
+                        Self::migrate_v21_to_v22(conn)?;
+                        Self::set_user_version(conn, 22)?;
+                    }
                     _ => {
                         return Err(AppError::Database(format!(
                             "未知的数据库版本 {version}，无法迁移到 {SCHEMA_VERSION}"
@@ -1639,6 +1644,73 @@ impl Database {
                 "INTEGER",
             )?;
         }
+        Ok(())
+    }
+
+    /// v21 -> v22 迁移：清理托管 OAuth / Copilot / xAI 功能移除后的存量元数据。
+    ///
+    /// 依赖这些字段的供应商卡片已没有后端执行路径，直接删除；普通卡片只移除
+    /// 失效元数据，保留原有配置和端点。迁移逐行解析 JSON，坏数据保持原样，
+    /// 避免 schema 升级被单条历史脏数据阻塞。
+    fn migrate_v21_to_v22(conn: &Connection) -> Result<(), AppError> {
+        if !Self::table_exists(conn, "providers")? {
+            return Ok(());
+        }
+
+        let mut stmt =
+            conn.prepare("SELECT id, app_type, meta FROM providers ORDER BY app_type, id")?;
+        let rows: Vec<(String, String, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<Result<_, _>>()?;
+        drop(stmt);
+
+        for (id, app_type, meta_text) in rows {
+            let Ok(mut meta) = serde_json::from_str::<serde_json::Value>(&meta_text) else {
+                continue;
+            };
+            let Some(obj) = meta.as_object_mut() else {
+                continue;
+            };
+
+            let provider_type = obj
+                .get("providerType")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default();
+            if matches!(
+                provider_type,
+                "codex_oauth" | "github_copilot" | "xai_oauth"
+            ) {
+                if Self::table_exists(conn, "provider_endpoints")? {
+                    conn.execute(
+                        "DELETE FROM provider_endpoints WHERE provider_id = ?1 AND app_type = ?2",
+                        params![id, app_type],
+                    )?;
+                }
+                conn.execute(
+                    "DELETE FROM providers WHERE id = ?1 AND app_type = ?2",
+                    params![id, app_type],
+                )?;
+                continue;
+            }
+
+            let mut changed = false;
+            for key in ["providerType", "authBinding", "codexFastMode"] {
+                changed |= obj.remove(key).is_some();
+            }
+            if changed {
+                conn.execute(
+                    "UPDATE providers SET meta = ?1 WHERE id = ?2 AND app_type = ?3",
+                    params![
+                        serde_json::to_string(&meta).map_err(|e| AppError::Database(format!(
+                            "序列化迁移后的 meta 失败: {e}"
+                        )))?,
+                        id,
+                        app_type
+                    ],
+                )?;
+            }
+        }
+
         Ok(())
     }
 
@@ -3912,7 +3984,7 @@ mod tests {
         conn.execute_batch("CREATE TABLE mcp_servers(id TEXT PRIMARY KEY, enabled_gemini BOOLEAN); CREATE TABLE skills(id TEXT PRIMARY KEY, enabled_codex BOOLEAN); INSERT INTO mcp_servers VALUES ('m',1); INSERT INTO skills VALUES ('s',1);")?;
         Database::set_user_version(&conn, 20)?;
         Database::apply_schema_migrations_on_conn(&conn)?;
-        assert_eq!(Database::get_user_version(&conn)?, 21);
+        assert_eq!(Database::get_user_version(&conn)?, 22);
         for (table, flag) in [
             ("mcp_servers", "enabled_gemini"),
             ("skills", "enabled_codex"),
@@ -3925,6 +3997,54 @@ mod tests {
             assert_eq!(row, (1, 0));
         }
         Database::apply_schema_migrations_on_conn(&conn)?;
+        Ok(())
+    }
+
+    #[test]
+    fn migrate_v21_to_v22_cleans_removed_oauth_metadata() -> Result<(), AppError> {
+        let conn = Connection::open_in_memory()?;
+        Database::create_tables_on_conn(&conn)?;
+        conn.execute_batch(r#"
+            INSERT INTO providers (id, app_type, name, settings_config, meta) VALUES
+                ('copilot', 'claude', 'Copilot', '{}', '{"providerType":"github_copilot","authBinding":{"source":"managed_account"}}'),
+                ('normal', 'codex', 'Normal', '{"auth":{},"config":""}', '{"providerType":"custom_gateway","codexFastMode":true,"apiFormat":"openai_chat"}'),
+                ('clean', 'codex', 'Clean', '{"auth":{},"config":""}', '{"apiFormat":"openai_chat"}');
+            INSERT INTO provider_endpoints (provider_id, app_type, url) VALUES
+                ('copilot', 'claude', 'https://copilot.example');
+        "#)?;
+
+        Database::set_user_version(&conn, 21)?;
+        Database::apply_schema_migrations_on_conn(&conn)?;
+
+        assert_eq!(Database::get_user_version(&conn)?, SCHEMA_VERSION);
+        let deleted: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM providers WHERE id = 'copilot'",
+            [],
+            |row| row.get(0),
+        )?;
+        let endpoints: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM provider_endpoints WHERE provider_id = 'copilot'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!((deleted, endpoints), (0, 0));
+
+        let normal_meta: String = conn.query_row(
+            "SELECT meta FROM providers WHERE id = 'normal'",
+            [],
+            |row| row.get(0),
+        )?;
+        let normal: serde_json::Value =
+            serde_json::from_str(&normal_meta).expect("valid migrated meta JSON");
+        assert_eq!(normal.get("providerType"), None);
+        assert_eq!(normal.get("codexFastMode"), None);
+        assert_eq!(normal["apiFormat"], "openai_chat");
+
+        let clean_meta: String =
+            conn.query_row("SELECT meta FROM providers WHERE id = 'clean'", [], |row| {
+                row.get(0)
+            })?;
+        assert_eq!(clean_meta, r#"{"apiFormat":"openai_chat"}"#);
         Ok(())
     }
 

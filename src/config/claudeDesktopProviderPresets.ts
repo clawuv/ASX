@@ -57,8 +57,6 @@ export interface ClaudeDesktopProviderPreset extends PresetFamilyFields {
   mode: "direct" | "proxy";
   apiFormat?: ClaudeDesktopApiFormat;
   modelRoutes?: ClaudeDesktopRoutePreset[];
-  providerType?: "github_copilot" | "codex_oauth" | "xai_oauth";
-  requiresOAuth?: boolean;
   // 是否在 UI 中隐藏该预设（预设仍存在，仅不在列表中显示）
   hidden?: boolean;
 
@@ -1165,49 +1163,6 @@ export const claudeDesktopProviderPresets: ClaudeDesktopProviderPreset[] = [
     endpointCandidates: ["https://generativelanguage.googleapis.com"],
     icon: "gemini",
     iconColor: "#4285F4",
-  },
-  {
-    name: "GitHub Copilot",
-    websiteUrl: "https://github.com/features/copilot",
-    category: "third_party",
-    baseUrl: "https://api.githubcopilot.com",
-    mode: "proxy",
-    apiFormat: "openai_chat",
-    providerType: "github_copilot",
-    requiresOAuth: true,
-    modelRoutes: brandedRoutes(
-      "claude-sonnet-5",
-      "claude-sonnet-5",
-      "claude-haiku-4.5",
-    ),
-    icon: "github",
-    iconColor: "#000000",
-  },
-  {
-    name: "Codex",
-    websiteUrl: "https://openai.com/chatgpt/pricing",
-    category: "third_party",
-    baseUrl: "https://chatgpt.com/backend-api/codex",
-    mode: "proxy",
-    apiFormat: "openai_responses",
-    providerType: "codex_oauth",
-    requiresOAuth: true,
-    modelRoutes: brandedRoutes("gpt-5.6-sol", "gpt-5.6-sol", "gpt-5.6-luna"),
-    icon: "openai",
-    iconColor: "#000000",
-  },
-  {
-    name: "xAI (Grok)",
-    websiteUrl: "https://x.ai/grok",
-    category: "third_party",
-    baseUrl: "https://api.x.ai/v1",
-    mode: "proxy",
-    apiFormat: "openai_responses",
-    providerType: "xai_oauth",
-    requiresOAuth: true,
-    modelRoutes: brandedRoutes("grok-4.5", "grok-4.5", "grok-4.5"),
-    icon: "xai",
-    iconColor: "#000000",
   },
   {
     name: "DeepSeek",

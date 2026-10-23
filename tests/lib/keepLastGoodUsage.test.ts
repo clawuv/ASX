@@ -64,9 +64,9 @@ describe("isTransientUsageError", () => {
     expect(
       isTransientUsageError(fail("API error (HTTP 429): rate limited")),
     ).toBe(true);
-    expect(
-      isTransientUsageError(fail("HTTP 429 Too Many Requests : x")),
-    ).toBe(true);
+    expect(isTransientUsageError(fail("HTTP 429 Too Many Requests : x"))).toBe(
+      true,
+    );
     expect(
       isTransientUsageError(fail("Authentication failed (HTTP 403)")),
     ).toBe(false);
@@ -195,7 +195,6 @@ describe("resolveDisplayUsage (keep-last-good)", () => {
   });
 });
 
-// 订阅系 hooks（useSubscriptionQuota / useCodexOauthQuota）复用同一决策函数，
 // 这里用 SubscriptionQuota 的形状锁定泛型行为。
 describe("resolveDisplayUsage（SubscriptionQuota 形状）", () => {
   interface QuotaLike {

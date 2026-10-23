@@ -15,7 +15,6 @@ export const PRESET_SEARCH_ALIASES: Record<string, string> = {
   DeepSeek: "深度求索",
   DigitalOcean: "gradient do digital ocean",
   "Gemini Native": "google 谷歌",
-  "GitHub Copilot": "copilot",
   "Hugging Face": "hf huggingface 抱抱脸",
   Kimi: "月之暗面 moonshot",
   "Kimi For Coding": "月之暗面 moonshot",

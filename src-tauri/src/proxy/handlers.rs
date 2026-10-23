@@ -50,6 +50,7 @@ use crate::app_config::AppType;
 use crate::database::PRICING_SOURCE_REQUEST;
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use bytes::Bytes;
+#[cfg(test)]
 use futures::StreamExt;
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
@@ -546,29 +547,7 @@ async fn handle_claude_transform(
     connection_guard: Option<ActiveConnectionGuard>,
 ) -> Result<axum::response::Response, ProxyError> {
     let status = response.status();
-    let is_codex_oauth = ctx
-        .provider
-        .meta
-        .as_ref()
-        .and_then(|meta| meta.provider_type.as_deref())
-        == Some("codex_oauth");
-    // Codex OAuth 会把 openai_responses 响应强制升级为 SSE，即使客户端发的是 stream:false。
-    // should_use_claude_transform_streaming 默认会把这个组合路由到流式转换器——虽然能避免
-    // JSON parse 报 422，但会让非流客户端收到 text/event-stream，违反 Anthropic 非流语义。
-    // 这里为这个特定组合打开 override：把上游 SSE 聚合成 Anthropic JSON 回给客户端，其它
-    // 场景（任意上游 is_sse、非 Codex OAuth 等）仍沿用原有流式兜底。
-    let aggregate_codex_oauth_responses_sse =
-        !is_stream && is_codex_oauth && api_format == "openai_responses";
-    let use_streaming = if aggregate_codex_oauth_responses_sse {
-        false
-    } else {
-        should_use_claude_transform_streaming(
-            is_stream,
-            response.is_sse(),
-            api_format,
-            is_codex_oauth,
-        )
-    };
+    let use_streaming = should_use_claude_transform_streaming(is_stream, response.is_sse());
     let tool_schema_hints = transform_gemini::extract_anthropic_tool_schema_hints(original_body);
     let tool_schema_hints = (!tool_schema_hints.is_empty()).then_some(tool_schema_hints);
     let hosted_web_search_name =
@@ -698,76 +677,51 @@ async fn handle_claude_transform(
         } else {
             std::time::Duration::ZERO
         };
-    let enforce_codex_web_search_limit_while_aggregating =
-        aggregate_codex_oauth_responses_sse && hosted_web_search_max_uses.is_some();
-    let (mut response_headers, direct_anthropic_response, upstream_response) =
-        if enforce_codex_web_search_limit_while_aggregating {
-            if let Some(encoding) = get_content_encoding(response.headers()) {
-                // Transformed requests advertise `accept-encoding: identity`.
-                // If an upstream ignores that contract, fail closed rather than
-                // buffering a compressed stream and losing early cancellation.
-                return Err(ProxyError::TransformError(format!(
-                    "Cannot enforce Anthropic WebSearch max_uses on a compressed Codex SSE response ({encoding})"
-                )));
+    let (mut response_headers, direct_anthropic_response, upstream_response) = {
+        let (response_headers, _status, body_bytes) =
+            read_decoded_body(response, ctx.tag, body_timeout).await?;
+        let body_str = String::from_utf8_lossy(&body_bytes);
+        let upstream_response = match serde_json::from_slice(&body_bytes) {
+            Ok(value) => value,
+            // 兜底嗅探（#2234）：部分网关对 stream:false 强制返回 SSE 体，却把
+            // Content-Type 标成 application/json 等，is_sse() 的 header 检查失效。
+            // 此时按 SSE 聚合成单个 JSON 再走既有非流转换器，客户端仍收到
+            // Anthropic JSON，非流语义不变。gemini_native 暂无聚合器，落诊断错误。
+            Err(_) if body_looks_like_sse(&body_str) && api_format != "gemini_native" => {
+                log::warn!(
+                    "[Claude] 上游对非流请求返回未标记的 SSE 体（api_format={api_format}），按 SSE 聚合兜底"
+                );
+                let aggregated = if api_format == "openai_responses" {
+                    responses_sse_to_response_value(&body_str)
+                } else {
+                    chat_sse_to_response_value(&body_str)
+                };
+                // 聚合也失败时：服务端日志只记录长度，并给客户端错误附带同款
+                // 现场诊断（content-type/body 分类），否则命中嗅探臂的用户只拿到
+                // 裸聚合错误、丢失非嗅探臂已有的诊断增强（C7）
+                aggregated.map_err(|e| {
+                    log::error!(
+                        "[Claude] SSE 聚合兜底失败: {e}, body_bytes={}",
+                        body_bytes.len()
+                    );
+                    aggregate_fallback_error(e, &response_headers, &body_str)
+                })?
             }
-            let response_headers = response.headers().clone();
-            let message = responses_sse_stream_to_anthropic_message(
-                response.bytes_stream(),
-                hosted_web_search_name.clone(),
-                hosted_web_search_max_uses,
-                body_timeout,
-            )
-            .await?;
-            (response_headers, Some(message), None)
-        } else {
-            let (response_headers, _status, body_bytes) =
-                read_decoded_body(response, ctx.tag, body_timeout).await?;
-            let body_str = String::from_utf8_lossy(&body_bytes);
-            let upstream_response = if aggregate_codex_oauth_responses_sse {
-                responses_sse_to_response_value(&body_str)?
-            } else {
-                match serde_json::from_slice(&body_bytes) {
-                    Ok(value) => value,
-                    // 兜底嗅探（#2234）：部分网关对 stream:false 强制返回 SSE 体，却把
-                    // Content-Type 标成 application/json 等，is_sse() 的 header 检查失效。
-                    // 此时按 SSE 聚合成单个 JSON 再走既有非流转换器，客户端仍收到
-                    // Anthropic JSON，非流语义不变。gemini_native 暂无聚合器，落诊断错误。
-                    Err(_) if body_looks_like_sse(&body_str) && api_format != "gemini_native" => {
-                        log::warn!(
-                            "[Claude] 上游对非流请求返回未标记的 SSE 体（api_format={api_format}），按 SSE 聚合兜底"
-                        );
-                        let aggregated = if api_format == "openai_responses" {
-                            responses_sse_to_response_value(&body_str)
-                        } else {
-                            chat_sse_to_response_value(&body_str)
-                        };
-                        // 聚合也失败时：服务端日志只记录长度，并给客户端错误附带同款
-                        // 现场诊断（content-type/body 分类），否则命中嗅探臂的用户只拿到
-                        // 裸聚合错误、丢失非嗅探臂已有的诊断增强（C7）
-                        aggregated.map_err(|e| {
-                            log::error!(
-                                "[Claude] SSE 聚合兜底失败: {e}, body_bytes={}",
-                                body_bytes.len()
-                            );
-                            aggregate_fallback_error(e, &response_headers, &body_str)
-                        })?
-                    }
-                    Err(e) => {
-                        log::error!(
-                            "[Claude] 解析上游响应失败: {e}, body_bytes={}",
-                            body_bytes.len()
-                        );
-                        return Err(upstream_body_parse_error(
-                            "Failed to parse upstream response",
-                            &e,
-                            &response_headers,
-                            &body_str,
-                        ));
-                    }
-                }
-            };
-            (response_headers, None, Some(upstream_response))
+            Err(e) => {
+                log::error!(
+                    "[Claude] 解析上游响应失败: {e}, body_bytes={}",
+                    body_bytes.len()
+                );
+                return Err(upstream_body_parse_error(
+                    "Failed to parse upstream response",
+                    &e,
+                    &response_headers,
+                    &body_str,
+                ));
+            }
         };
+        (response_headers, None, Some(upstream_response))
+    };
 
     // Preserve usage so a post-upstream conversion failure still records tokens.
     // The direct Anthropic branch below is already fully transformed and cannot
@@ -2579,15 +2533,11 @@ pub async fn handle_gemini(
     .await
 }
 
-fn should_use_claude_transform_streaming(
-    requested_streaming: bool,
-    upstream_is_sse: bool,
-    api_format: &str,
-    is_codex_oauth: bool,
-) -> bool {
-    requested_streaming || upstream_is_sse || (is_codex_oauth && api_format == "openai_responses")
+fn should_use_claude_transform_streaming(requested_streaming: bool, upstream_is_sse: bool) -> bool {
+    requested_streaming || upstream_is_sse
 }
 
+#[cfg(test)]
 async fn responses_sse_stream_to_anthropic_message(
     stream: impl futures::Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static,
     hosted_web_search_name: Option<String>,
@@ -3878,13 +3828,8 @@ data: [DONE]\n\n";
     }
 
     #[test]
-    fn codex_oauth_responses_force_streaming_even_if_client_sent_false() {
-        assert!(should_use_claude_transform_streaming(
-            false,
-            false,
-            "openai_responses",
-            true,
-        ));
+    fn regular_responses_without_sse_stays_non_streaming() {
+        assert!(!should_use_claude_transform_streaming(false, false));
     }
 
     #[tokio::test]
@@ -3947,22 +3892,12 @@ data: [DONE]\n\n";
 
     #[test]
     fn upstream_sse_response_always_uses_streaming_path() {
-        assert!(should_use_claude_transform_streaming(
-            false,
-            true,
-            "openai_chat",
-            false,
-        ));
+        assert!(should_use_claude_transform_streaming(false, true));
     }
 
     #[test]
     fn non_streaming_response_stays_non_streaming_for_regular_openai_responses() {
-        assert!(!should_use_claude_transform_streaming(
-            false,
-            false,
-            "openai_responses",
-            false,
-        ));
+        assert!(!should_use_claude_transform_streaming(false, false));
     }
 
     #[test]

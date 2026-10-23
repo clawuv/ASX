@@ -812,9 +812,7 @@ function presetRowDetail(
       : t("providerPreset.matchedVersion", { name });
   }
   if (presetRowGroup(row) === "login") {
-    return t(
-      `providerPreset.loginWith.${loginAccountKey(appId, first.preset)}`,
-    );
+    return t(`providerPreset.loginWith.${loginAccountKey(appId)}`);
   }
   if (row.family) {
     return t("providerPreset.versionCount", {

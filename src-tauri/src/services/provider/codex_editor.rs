@@ -13,8 +13,6 @@
 //! `[model_providers]` 下 CC Switch 路由表以外的每张表。嵌在用户表里的模型名是关键字段，
 //! 不算全局改动。
 
-use std::sync::Arc;
-
 use serde_json::{Map, Value};
 use toml_edit::{DocumentMut, Item};
 
@@ -31,7 +29,6 @@ use crate::live::project::codex::{
 use crate::mode::operation::{AppWrite, FileChange};
 use crate::mode::state::{op, PendingTarget};
 use crate::provider::{Provider, ProviderMeta};
-use crate::proxy::providers::codex_oauth_auth::CodexOAuthManager;
 use crate::store::AppState;
 
 use super::claude_editor::{ConflictPolicy, EditorView, InactiveField};
@@ -144,12 +141,10 @@ pub fn view(
         .cloned()
         .unwrap_or_else(Map::new);
     settings.insert("config".to_string(), Value::String(display.clone()));
-    // 没绑托管账号的官方卡：auth.json 框和 TOML 一样显示切过去之后盘上的样子。行里存的
+    // 官方卡：auth.json 框和 TOML 一样显示切过去之后盘上的样子。行里存的
     // 登录是旧版回填的快照，Codex 轮换 token 后就对不上了；切换也不拿它覆盖同一个人的
     // 登录（见 `codex_login::official`）。用户没改就不存回行，见 [`plan_save`]。
-    if codex_direct::is_official(&provider)
-        && super::ProviderService::managed_codex_oauth_account_id(&provider).is_none()
-    {
+    if codex_direct::is_official(&provider) {
         let on_disk = codex_direct::predicted_auth_file(
             &state.db,
             &live_owner.owner(),
@@ -234,7 +229,6 @@ fn project_for_save(input: &RowInput<'_>) -> Result<CodexProjection, AppError> {
     let mut projection = CodexProjection::of(&RowInput {
         settings: &settings,
         official: input.official,
-        proxy_injected_oauth: input.proxy_injected_oauth,
     })
     .map_err(|_| error)?;
     if let Route::Custom { table, .. } = &mut projection.route {
@@ -350,7 +344,6 @@ pub(crate) fn plan_save(
     base: &Value,
     origin: &Origin,
     official: bool,
-    proxy_injected_oauth: bool,
     on_conflict: ConflictPolicy,
 ) -> Result<CodexEditorPlan, AppError> {
     let edited_doc = parse_text(config_text(edited), "edited")?;
@@ -358,7 +351,6 @@ pub(crate) fn plan_save(
     let mut projection = project_for_save(&RowInput {
         settings: edited,
         official,
-        proxy_injected_oauth,
     })?;
 
     let rendered = |doc: &DocumentMut, key: &str| doc.get(key).map(render);
@@ -507,7 +499,6 @@ pub(crate) enum KeyFields<'a> {
 /// 把编辑器保存的改动写进 live。没有要写的就什么都不做。
 pub(crate) fn write_live(
     db: &Database,
-    manager: &Arc<CodexOAuthManager>,
     edits: &TomlEdits,
     key_fields: KeyFields<'_>,
 ) -> Result<(), AppError> {
@@ -519,7 +510,7 @@ pub(crate) fn write_live(
         } => {
             let owner = prev.map_or(Owner::None, Owner::Provider);
             let spec = Target::Direct(Some(target));
-            let prepared = codex_direct::prepare(manager, &owner, &spec)?;
+            let prepared = codex_direct::prepare(&owner, &spec)?;
             let planned = codex_direct::plan(db, &owner, &spec, &prepared)?;
             codex_direct::run_with_edits(
                 db,
@@ -616,7 +607,6 @@ mod tests {
             &edited,
             &Origin::row(&stored).unwrap(),
             false,
-            false,
             ConflictPolicy::Refuse,
         )
         .unwrap();
@@ -657,7 +647,6 @@ mod tests {
             &stored,
             &stored,
             &Origin::row(&stored).unwrap(),
-            false,
             false,
             ConflictPolicy::Refuse,
         )

@@ -89,12 +89,6 @@ const entries: PresetEntry[] = [
     preset: preset("AWS Bedrock", "cloud_provider", "https://aws.amazon.com"),
   },
   {
-    id: "copilot",
-    preset: preset("GitHub Copilot", "third_party", "https://github.com", {
-      providerType: "github_copilot",
-    }),
-  },
-  {
     id: "ollama-local",
     preset: preset("Ollama", "local", "https://ollama.com"),
   },
@@ -180,7 +174,6 @@ describe("preset helpers", () => {
       "vendor",
       "vendor",
       "cloud",
-      "login",
       "local",
     ]);
   });
@@ -194,7 +187,6 @@ describe("preset helpers", () => {
       "alpha",
       "bedrock",
       "gamma",
-      "copilot",
       "huoshan",
       "ollama-local",
       "zhipu",
@@ -244,7 +236,7 @@ describe("preset families", () => {
     const claudeEntries = providerPresets
       .map((item, index) => ({ id: `claude-${index}`, preset: item }))
       .filter((entry) => !entry.preset.hidden);
-    expect(groupPresetRows(claudeEntries)).toHaveLength(106);
+    expect(groupPresetRows(claudeEntries)).toHaveLength(103);
   });
 
   it("orders plans and regions as the design does where a family says so", () => {
@@ -329,7 +321,7 @@ describe("preset families", () => {
         (section) => [section.group, section.items.map(({ row }) => row.key)],
       );
     expect(sections("")).toEqual([
-      ["login", ["alpha", "copilot"]],
+      ["login", ["alpha"]],
       ["vendor", ["huoshan", "family:kimi", "zhipu"]],
       ["thirdparty", ["gamma"]],
       ["cloud", ["bedrock"]],
@@ -461,7 +453,7 @@ describe("ProviderPresetSelector", () => {
       within(login)
         .getAllByRole("button")
         .map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["GitHub Copilot", "preset.alpha"]);
+    ).toEqual(["preset.alpha"]);
     expect(
       within(
         within(host).getByRole("region", {
@@ -489,11 +481,8 @@ describe("ProviderPresetSelector", () => {
     await user.click(
       within(host).getByRole("button", { name: /providerPreset.group.login/ }),
     );
-    expect(within(host).getByText("GitHub Copilot")).toBeInTheDocument();
+    expect(within(host).getByText("preset.alpha")).toBeInTheDocument();
     expect(within(host).queryByText("Gamma")).not.toBeInTheDocument();
-    expect(
-      within(host).getByText("providerPreset.loginWith.github"),
-    ).toBeInTheDocument();
 
     const search = within(host).getByRole("textbox", {
       name: "providerPreset.searchAriaLabel",

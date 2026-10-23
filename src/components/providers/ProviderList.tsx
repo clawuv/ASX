@@ -256,6 +256,13 @@ export function ProviderList({
     input.scrollIntoView?.({ block: "nearest" });
   }, []);
 
+  // Ctrl/Cmd+F 新打开搜索时聚焦；进入页面时即使面板残留打开也不抢占焦点。
+  const wasSearchOpenRef = useRef(isSearchOpen);
+  useEffect(() => {
+    if (isSearchOpen && !wasSearchOpenRef.current) focusSearch();
+    wasSearchOpenRef.current = isSearchOpen;
+  }, [isSearchOpen, focusSearch]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
