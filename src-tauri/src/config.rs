@@ -13,7 +13,7 @@ use crate::error::AppError;
 /// - `dirs::home_dir()` 在 Windows 上使用 `SHGetKnownFolderPath(FOLDERID_Profile)`，
 ///   返回的是真实用户目录（类似 `C:\\Users\\Alice`），与 v3.10.2 行为一致。
 /// - 不要直接使用 `HOME` 环境变量：它可能由 Git/Cygwin/MSYS 等第三方工具注入，
-///   且不一定等于用户目录，可能导致 `.cc-switch/cc-switch.db` 路径变化，从而“看起来像数据丢失”。
+///   且不一定等于用户目录，可能导致 `.asx/cc-switch.db` 路径变化，从而“看起来像数据丢失”。
 ///
 /// ## 测试隔离
 ///
@@ -309,16 +309,90 @@ pub fn get_claude_settings_path() -> PathBuf {
     settings
 }
 
-/// 获取应用配置目录路径 (~/.cc-switch)
+/// 应用数据目录名，默认数据目录为 `~/.asx`
+pub const APP_DATA_DIR_NAME: &str = ".asx";
+/// 旧版应用数据目录名（`~/.asx`）。仅用于旧数据检测与一次性迁移，不再写入。
+pub const LEGACY_APP_DATA_DIR_NAME: &str = ".cc-switch";
+
+/// 数据目录更名迁移：`~/.asx` -> `~/.asx`
+///
+/// 仅当新目录不存在且旧目录存在时执行：把旧目录整体搬迁到新位置，避免目录更名
+/// 后被误判为“供应商/配置丢失”。rename 失败（如跨文件系统）时退回整目录复制，
+/// 成功后把旧目录改名为 `~/.asx.migrated` 留存。全程失败则保留旧目录不动，
+/// 继续使用新目录，下次启动重试。
+pub fn migrate_legacy_app_data_dir() {
+    let home = get_home_dir();
+    let new_dir = home.join(APP_DATA_DIR_NAME);
+    let legacy_dir = home.join(LEGACY_APP_DATA_DIR_NAME);
+
+    if new_dir.exists() || !legacy_dir.exists() {
+        return;
+    }
+
+    match fs::rename(&legacy_dir, &new_dir) {
+        Ok(()) => {
+            log::info!(
+                "已迁移应用数据目录：{} -> {}",
+                legacy_dir.display(),
+                new_dir.display()
+            );
+        }
+        Err(error) => {
+            log::warn!("直接迁移数据目录失败（{error}），尝试复制迁移");
+            match copy_dir_all(&legacy_dir, &new_dir) {
+                Ok(()) => {
+                    let retired = home.join(format!("{LEGACY_APP_DATA_DIR_NAME}.migrated"));
+                    match fs::rename(&legacy_dir, &retired) {
+                        Ok(()) => log::info!(
+                            "已复制迁移应用数据目录：{} -> {}（旧目录留存于 {}）",
+                            legacy_dir.display(),
+                            new_dir.display(),
+                            retired.display()
+                        ),
+                        Err(rename_error) => log::warn!(
+                            "复制迁移完成，但旧目录 {} 改名失败（{rename_error}），保留原样",
+                            legacy_dir.display()
+                        ),
+                    }
+                }
+                Err(copy_error) => {
+                    log::error!(
+                        "迁移应用数据目录失败，继续使用新目录 {}（旧数据保留在 {}）：{copy_error}",
+                        new_dir.display(),
+                        legacy_dir.display()
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// 递归复制目录（跟随符号链接复制内容）
+fn copy_dir_all(src: &Path, dest: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dest)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let target = dest.join(entry.file_name());
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            copy_dir_all(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
+/// 获取应用配置目录路径 (~/.asx)
 pub fn get_app_config_dir() -> PathBuf {
     if let Some(custom) = crate::app_store::get_app_config_dir_override() {
         return custom;
     }
 
-    let default_dir = get_home_dir().join(".cc-switch");
+    let default_dir = get_home_dir().join(APP_DATA_DIR_NAME);
 
     // 兼容 v3.10.3：当用户环境存在 `HOME` 且与真实用户目录不同，
-    // v3.10.3 可能在 `HOME/.cc-switch/` 下创建/使用了数据库。
+    // 旧版本可能在 `HOME/.asx/` 下创建/使用了数据库。
     // 这里仅在“默认位置没有数据库”时回退到旧位置，避免再次出现“供应商消失”问题，
     // 同时也避免新安装因为 `HOME` 被设置而写入非预期路径。
     //
@@ -338,7 +412,7 @@ pub fn get_app_config_dir() -> PathBuf {
             if let Ok(home_env) = std::env::var("HOME") {
                 let trimmed = home_env.trim();
                 if !trimmed.is_empty() {
-                    let legacy_dir = PathBuf::from(trimmed).join(".cc-switch");
+                    let legacy_dir = PathBuf::from(trimmed).join(LEGACY_APP_DATA_DIR_NAME);
                     if legacy_dir.join("cc-switch.db").exists() {
                         log::info!(
                             "Detected v3.10.3 legacy database at {}, using it instead of {}",
@@ -1023,7 +1097,7 @@ mod tests {
 
         // 假装 HOME 指向另一处，并且那里有一份 db——正是会触发回退的形状
         let legacy_home = tempfile::tempdir().expect("tempdir");
-        let legacy_dir = legacy_home.path().join(".cc-switch");
+        let legacy_dir = legacy_home.path().join(crate::config::APP_DATA_DIR_NAME);
         std::fs::create_dir_all(&legacy_dir).expect("create legacy dir");
         std::fs::write(legacy_dir.join("cc-switch.db"), b"legacy").expect("seed legacy db");
 
@@ -1045,11 +1119,44 @@ mod tests {
             None => std::env::remove_var("HOME"),
         }
 
-        let expected = test_home.path().join(".cc-switch");
+        let expected = test_home.path().join(APP_DATA_DIR_NAME);
         assert_eq!(
             dir, expected,
             "测试 home 优先：不得回退到 HOME 下的旧库目录"
         );
+    }
+
+    /// 数据目录更名迁移：新目录不存在而旧目录存在时，旧目录整体搬迁到新目录。
+    #[test]
+    #[serial_test::serial]
+    fn migrate_legacy_app_data_dir_moves_legacy_home() {
+        let test_home = tempfile::tempdir().expect("tempdir");
+        let saved_test_home = std::env::var_os("CC_SWITCH_TEST_HOME");
+        std::env::set_var("CC_SWITCH_TEST_HOME", test_home.path());
+
+        let legacy_dir = test_home.path().join(LEGACY_APP_DATA_DIR_NAME);
+        std::fs::create_dir_all(legacy_dir.join("backups")).expect("seed legacy dir");
+        std::fs::write(legacy_dir.join("cc-switch.db"), b"legacy").expect("seed legacy db");
+
+        migrate_legacy_app_data_dir();
+
+        let new_dir = test_home.path().join(APP_DATA_DIR_NAME);
+        // 幂等：新目录已存在时再次调用不得改动现有数据
+        std::fs::write(new_dir.join("marker"), b"new").expect("seed marker");
+        migrate_legacy_app_data_dir();
+
+        match saved_test_home {
+            Some(value) => std::env::set_var("CC_SWITCH_TEST_HOME", value),
+            None => std::env::remove_var("CC_SWITCH_TEST_HOME"),
+        }
+
+        assert!(new_dir.join("cc-switch.db").exists(), "数据应出现在新目录");
+        assert!(!legacy_dir.exists(), "旧目录应已搬走");
+        assert_eq!(
+            std::fs::read(new_dir.join("cc-switch.db")).unwrap(),
+            b"legacy"
+        );
+        assert!(new_dir.join("marker").exists(), "第二次调用不得覆盖新目录");
     }
 }
 

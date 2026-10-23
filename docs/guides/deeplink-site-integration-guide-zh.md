@@ -604,7 +604,7 @@ app.post("/api/ccswitch-link", requireLogin, (req, res) => {
 2. 确认框直接报错时，错误信息就是原因，对照上面「会被拒绝的链接」排查。
 3. 导入成功但余额不显示：在供应商卡片上打开「配置用量查询」，点「测试脚本」看报什么错。最常见的是请求地址不同源、余额接口返回的不是 JSON、`extractor` 里取错了字段。
 4. 导入成功但切过去后请求失败：多半是接口格式不对（见「支持哪些应用」），或模型名不对。
-5. `iconUrl` 的图标没显示：下载失败不会报错，原因写在 CC Switch 的日志里（`~/.cc-switch/logs/cc-switch.log`，搜 `Skipped deep link icon`）。最常见的是 `Content-Type` 不对、图片超过 256 KB、地址要登录或开了防盗链，用 `curl -I` 看一下响应头。
+5. `iconUrl` 的图标没显示：下载失败不会报错，原因写在 CC Switch 的日志里（`~/.asx/logs/cc-switch.log`，搜 `Skipped deep link icon`）。最常见的是 `Content-Type` 不对、图片超过 256 KB、地址要登录或开了防盗链，用 `curl -I` 看一下响应头。
 
 ## 兼容旧版本
 

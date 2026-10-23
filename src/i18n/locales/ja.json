@@ -383,7 +383,7 @@
     },
     "unifyCodexHistory": {
       "title": "Codex セッション履歴を統一",
-      "message": "オンにすると、Codex CLI の resume 一覧に公式サブスクリプションとサードパーティのセッションがまとめて表示されます（Codex デスクトップ版はアップデートで全セッションを表示できるようになったため影響しません）。注意：プロバイダーをまたいで古いセッションを再開すると、相手のバックエンドが encrypted_content の推論内容を復号できず失敗する場合があります。\n\n既存の公式セッション履歴を共有一覧へ移行することもできます（移行前に ~/.cc-switch/backups へ自動バックアップし、オフにする際に復元を選べます）。",
+      "message": "オンにすると、Codex CLI の resume 一覧に公式サブスクリプションとサードパーティのセッションがまとめて表示されます（Codex デスクトップ版はアップデートで全セッションを表示できるようになったため影響しません）。注意：プロバイダーをまたいで古いセッションを再開すると、相手のバックエンドが encrypted_content の推論内容を復号できず失敗する場合があります。\n\n既存の公式セッション履歴を共有一覧へ移行することもできます（移行前に ~/.asx/backups へ自動バックアップし、オフにする際に復元を選べます）。",
       "migrateExisting": "既存の公式セッション履歴も移行する",
       "confirm": "理解しました、オンにする"
     },
@@ -916,7 +916,7 @@
     "configDirectoryDescription": "WSL などで Claude Code や Codex を使う場合、ここで設定ディレクトリを WSL 側に合わせるとデータを揃えられます。",
     "appConfigDir": "CC Switch 設定ディレクトリ",
     "appConfigDirDescription": "CC Switch の保存場所をカスタマイズします（クラウド同期フォルダを指定すると設定を同期できます）",
-    "browsePlaceholderApp": "例: C:\\\\Users\\\\Administrator\\\\.cc-switch",
+    "browsePlaceholderApp": "例: C:\\\\Users\\\\Administrator\\\\.asx",
     "claudeConfigDir": "Claude Code 設定ディレクトリ",
     "claudeConfigDirDescription": "Claude の設定ディレクトリ（settings.json）を上書きします。カスタムディレクトリでは .claude.json（MCP）をその中に保存し、既定の ~/.claude では Claude Code の既定どおり ~/.claude.json を使います。",
     "codexConfigDir": "Codex 設定ディレクトリ",
@@ -950,7 +950,7 @@
     "upToDate": "最新バージョンです",
     "aboutHint": "バージョン情報と更新状況を表示します。",
     "portableMode": "ポータブルモード: 更新は手動ダウンロードが必要です。",
-    "portableUpdateHint": "ポータブル版：上のボタンで新しい zip をダウンロードし、展開して既存の cc-switch.exe を上書きしてください。設定とデータはユーザーフォルダの .cc-switch に保存されており、上書きしても失われません。",
+    "portableUpdateHint": "ポータブル版：上のボタンで新しい zip をダウンロードし、展開して既存の cc-switch.exe を上書きしてください。設定とデータはユーザーフォルダの .asx に保存されており、上書きしても失われません。",
     "updateAvailable": "新しいバージョンがあります: {{version}}",
     "updateBadge": "更新あり",
     "updateFailed": "更新のインストールに失敗しました。ダウンロードページを開こうとしました。",

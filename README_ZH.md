@@ -451,7 +451,7 @@ Claude Code 不受影响，聚合模型改动立即生效。
 
 这些共享设置可以直接在工具里改，或手动编辑配置文件；也可以在 CC Switch 里编辑任意一个供应商：编辑框显示的是“切到这个供应商之后配置文件的样子”，保存时关键字段存进这个供应商，其余改动写进配置文件，对所有供应商生效。
 
-所以以前的“通用配置片段”已经不需要了，相关按钮已移除。升级前片段里的设置在切换时早已写进配置文件，会继续保留。CC Switch 第一次改写每个配置文件之前，还会把原文件备份到 `~/.cc-switch/backups/live-first-write/`。
+所以以前的“通用配置片段”已经不需要了，相关按钮已移除。升级前片段里的设置在切换时早已写进配置文件，会继续保留。CC Switch 第一次改写每个配置文件之前，还会把原文件备份到 `~/.asx/backups/live-first-write/`。
 
 </details>
 
@@ -514,7 +514,7 @@ Codex 还可以在 CC Switch 里用“使用 ChatGPT 登录”登录多个 ChatG
 <details>
 <summary><strong>我的数据存储在哪里？</strong></summary>
 
-默认都在用户主目录下的 `.cc-switch` 文件夹（Windows 为 `C:\Users\<用户名>\.cc-switch`）：
+默认都在用户主目录下的 `.asx` 文件夹（Windows 为 `C:\Users\<用户名>\.asx`）：
 
 - **数据库**：`cc-switch.db`（SQLite — 供应商、MCP、提示词、Skills、项目、用量记录等）
 - **本地设置**：`settings.json`（设备级设置，如各工具的配置目录、备份策略、云同步连接信息）
@@ -544,7 +544,7 @@ CC Switch 不会自动识别 WSL。请在「设置 → 应用配置」里，把�
 
 CC Switch 本身只提供需要图形界面的桌面版（系统要求见[下载安装](#下载安装)）。在服务器、SSH 远程或没有桌面环境的机器上，推荐使用社区维护的 **[CC Switch CLI](https://github.com/SaladDay/cc-switch-cli)**：它提供交互式终端界面（TUI）和命令行两种用法，支持 Claude Code、Codex、Gemini CLI、OpenCode、OpenClaw、Hermes、Pi，可以通过 Homebrew（`brew install cc-switch-cli`）或安装脚本安装。
 
-CC Switch CLI 默认与桌面版共用数据目录 `~/.cc-switch`，也兼容桌面版的 WebDAV 同步。两个项目分别发版，CLI 版支持的数据库版本有时会落后于桌面版；遇到“数据库版本过新”的提示时，请升级 CLI 版，或等它跟进更新。
+CC Switch CLI 默认与桌面版共用数据目录 `~/.asx`，也兼容桌面版的 WebDAV 同步。两个项目分别发版，CLI 版支持的数据库版本有时会落后于桌面版；遇到“数据库版本过新”的提示时，请升级 CLI 版，或等它跟进更新。
 
 </details>
 

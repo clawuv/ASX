@@ -450,7 +450,7 @@ Nein. Beim Anbieterwechsel für Claude Code, Codex, Gemini CLI oder Grok Build e
 
 Diese gemeinsamen Einstellungen können Sie direkt im Werkzeug ändern oder die Konfigurationsdatei von Hand bearbeiten. Sie können auch einen beliebigen Anbieter in CC Switch bearbeiten: Der Editor zeigt, „wie die Konfigurationsdatei nach dem Wechsel zu diesem Anbieter aussieht“. Beim Speichern werden die Kernfelder in diesem Anbieter gespeichert; alle anderen Änderungen werden in die Konfigurationsdatei geschrieben und gelten für alle Anbieter.
 
-Das frühere „Common Config Snippet“ wird daher nicht mehr gebraucht, und die zugehörigen Schaltflächen wurden entfernt. Einstellungen, die vor dem Upgrade im Snippet standen, wurden beim Wechseln bereits in die Konfigurationsdatei geschrieben und bleiben dort erhalten. Bevor CC Switch eine Konfigurationsdatei zum ersten Mal umschreibt, sichert es außerdem das Original unter `~/.cc-switch/backups/live-first-write/`.
+Das frühere „Common Config Snippet“ wird daher nicht mehr gebraucht, und die zugehörigen Schaltflächen wurden entfernt. Einstellungen, die vor dem Upgrade im Snippet standen, wurden beim Wechseln bereits in die Konfigurationsdatei geschrieben und bleiben dort erhalten. Bevor CC Switch eine Konfigurationsdatei zum ersten Mal umschreibt, sichert es außerdem das Original unter `~/.asx/backups/live-first-write/`.
 
 </details>
 
@@ -513,7 +513,7 @@ Der „Connectivity check“ auf der Anbieterkarte prüft nur, ob die Anbieterad
 <details>
 <summary><strong>Wo werden meine Daten gespeichert?</strong></summary>
 
-Standardmäßig liegen alle Daten im Ordner `.cc-switch` in Ihrem Benutzerverzeichnis (unter Windows `C:\Users\<Benutzername>\.cc-switch`):
+Standardmäßig liegen alle Daten im Ordner `.asx` in Ihrem Benutzerverzeichnis (unter Windows `C:\Users\<Benutzername>\.asx`):
 
 - **Datenbank**: `cc-switch.db` (SQLite — Anbieter, MCP, Prompts, Skills, Projekte, Nutzungsdaten usw.)
 - **Lokale Einstellungen**: `settings.json` (gerätebezogene Einstellungen, z. B. die Konfigurationsverzeichnisse der einzelnen Werkzeuge, Backup-Richtlinie, Verbindungsdaten für die Cloud-Synchronisierung)
@@ -543,7 +543,7 @@ Hinweis: Routing und Aggregation tragen als Adresse `127.0.0.1` in die Konfigura
 
 CC Switch selbst gibt es nur als Desktop-Version mit grafischer Oberfläche (Systemanforderungen siehe [Download & Installation](#download--installation)). Für Server, SSH-Remote-Sitzungen oder Rechner ohne Desktop-Umgebung empfehlen wir das von der Community gepflegte **[CC Switch CLI](https://github.com/SaladDay/cc-switch-cli)**: Es bietet sowohl eine interaktive Terminaloberfläche (TUI) als auch eine Kommandozeilenschnittstelle, unterstützt Claude Code, Codex, Gemini CLI, OpenCode, OpenClaw, Hermes und Pi und lässt sich über Homebrew (`brew install cc-switch-cli`) oder ein Installationsskript installieren.
 
-CC Switch CLI verwendet standardmäßig dasselbe Datenverzeichnis `~/.cc-switch` wie die Desktop-Version und ist auch mit deren WebDAV-Synchronisierung kompatibel. Die beiden Projekte werden unabhängig voneinander veröffentlicht, daher kann die von der CLI-Version unterstützte Datenbankversion zeitweise hinter der Desktop-Version zurückliegen; erscheint der Hinweis, dass die Datenbankversion zu neu ist, aktualisieren Sie die CLI-Version oder warten Sie, bis sie nachzieht.
+CC Switch CLI verwendet standardmäßig dasselbe Datenverzeichnis `~/.asx` wie die Desktop-Version und ist auch mit deren WebDAV-Synchronisierung kompatibel. Die beiden Projekte werden unabhängig voneinander veröffentlicht, daher kann die von der CLI-Version unterstützte Datenbankversion zeitweise hinter der Desktop-Version zurückliegen; erscheint der Hinweis, dass die Datenbankversion zu neu ist, aktualisieren Sie die CLI-Version oder warten Sie, bis sie nachzieht.
 
 </details>
 

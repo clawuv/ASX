@@ -6,7 +6,7 @@
 
 | 功能       | 实现                                                           | 数据来源 / 写入目标                                       |
 | ---------- | -------------------------------------------------------------- | --------------------------------------------------------- |
-| 供应商切换 | 官方登录切模型；第三方 Key 经「打开终端」用私有目录启动     | `~/.gemini/antigravity-cli/settings.json`、`~/.cc-switch/agy/<供应商>/` |
+| 供应商切换 | 官方登录切模型；第三方 Key 经「打开终端」用私有目录启动     | `~/.gemini/antigravity-cli/settings.json`、`~/.asx/agy/<供应商>/` |
 | 模型选择   | 手动填写、第三方 Gemini models API、当前本机 `agy models`      | `config.model.name`，兼容 `env.GEMINI_MODEL`              |
 | Token 信息 | 输入、输出、缓存读写；会话消息元数据和统一用量面板             | `brain/<id>/.system_generated/logs/transcript_full.jsonl` |
 | MCP        | 导入、编辑、独立启用/禁用、删除、重新同步                      | `~/.gemini/config/mcp_config.json`                        |
@@ -38,7 +38,7 @@
 agy 只从进程环境读 Key 和端点，不读取任何文件里的 Key，`modelProvider` 又是全局开关：写进真实 `settings.json` 后，没有带 Key 启动的 agy 会直接报错。所以两种卡分开处理：
 
 - **官方登录卡**：切换时只改真实 `settings.json` 的 `model`，并去掉 `modelProvider`，主题、受信工作区等其他配置保留。登录凭据由 agy 自己保管（不在 `~/.gemini` 里），CCS 不读也不碰。在哪个终端运行 `agy` 都生效。
-- **第三方 Key 卡**：只在卡片「打开终端」启动的 agy 里生效。启动命令是 `agy --gemini_dir=<私有目录>`，私有目录为 `~/.cc-switch/agy/<供应商 ID>/`：其中 `antigravity-cli/settings.json` 写 `modelProvider: "gemini"` 和模型（权限 `0600`，不含 Key），`config` 软链回 `~/.gemini/config`（Windows 先试符号链接，失败时用目录联接），MCP、Skills 和提示词照常共享。会话也存在私有目录里，删除供应商不会删掉它。切换到 Key 卡时，真实 `settings.json` 只去掉 `modelProvider`，模型不动，直接运行 `agy` 仍是官方登录。
+- **第三方 Key 卡**：只在卡片「打开终端」启动的 agy 里生效。启动命令是 `agy --gemini_dir=<私有目录>`，私有目录为 `~/.asx/agy/<供应商 ID>/`：其中 `antigravity-cli/settings.json` 写 `modelProvider: "gemini"` 和模型（权限 `0600`，不含 Key），`config` 软链回 `~/.gemini/config`（Windows 先试符号链接，失败时用目录联接），MCP、Skills 和提示词照常共享。会话也存在私有目录里，删除供应商不会删掉它。切换到 Key 卡时，真实 `settings.json` 只去掉 `modelProvider`，模型不动，直接运行 `agy` 仍是官方登录。
 - **Key 怎么传**：macOS / Linux 的启动脚本先读入一个 `0600` 的临时文件，读完立即删除，再经 `env` 把 Key 和地址交给这一个 agy 进程；卡上没填地址时用 `env -u` 清掉用户 rc 里可能 export 的同名变量，以免被 rc 覆盖或误用。Windows 写进 `.bat` 的 `setlocal` 段，agy 退出后随 `endlocal` 撤掉；含非 ASCII 的路径按 #8034 的办法经环境变量转一手。Key 不出现在命令行参数里，也不写进任何常驻文件。
 - **不改 shell 启动文件，也不装包装脚本。** #8268 的测试版装过 `~/.gemini/antigravity-cli/bin/agy` 包装脚本、`env` 文件和 shell PATH 片段，新版启动时会清理：只删带 CCS 标记的脚本、`env` 文件和 PATH 片段（只剩该片段的文件整个删掉），然后按新规则把当前供应商重写一次，让 `modelProvider` 回到登录模式。没有标记的同名文件和用户的其他内容原样保留。
 - 真实 `agy` 的定位顺序（`get_agy_models` 用）：PATH（跳过旧版带标记的包装脚本）、`~/.local/bin`、`/opt/homebrew/bin`、`/usr/local/bin`，最后用登录 shell 执行一次 `command -v agy`（限时 2 秒）。从 Dock / Finder 启动 CCS 时 PATH 只有系统目录，所以后几步不可省。「打开终端」按终端里的 PATH 找 agy，不用这个解析。

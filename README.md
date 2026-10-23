@@ -450,7 +450,7 @@ No. When you switch providers for Claude Code, Codex, Gemini CLI, or Grok Build,
 
 You can change these shared settings in the tool itself or by editing the config file by hand. You can also edit any provider in CC Switch: the editor shows "what the config file will look like after switching to this provider". When you save, the key fields are stored in that provider, and every other change is written to the config file and applies to every provider.
 
-So the old "Common Config Snippet" is no longer needed, and its buttons have been removed. Settings that were in your snippet before the upgrade were already written into the config file when you switched, so they stay. Before CC Switch rewrites each config file for the first time, it also backs up the original to `~/.cc-switch/backups/live-first-write/`.
+So the old "Common Config Snippet" is no longer needed, and its buttons have been removed. Settings that were in your snippet before the upgrade were already written into the config file when you switched, so they stay. Before CC Switch rewrites each config file for the first time, it also backs up the original to `~/.asx/backups/live-first-write/`.
 
 </details>
 
@@ -513,7 +513,7 @@ The "Connectivity check" on a provider card only checks whether the provider add
 <details>
 <summary><strong>Where is my data stored?</strong></summary>
 
-By default, everything is stored in the `.cc-switch` folder in your home directory (`C:\Users\<user>\.cc-switch` on Windows):
+By default, everything is stored in the `.asx` folder in your home directory (`C:\Users\<user>\.asx` on Windows):
 
 - **Database**: `cc-switch.db` (SQLite — providers, MCP, prompts, Skills, projects, usage records, etc.)
 - **Local settings**: `settings.json` (device-level settings such as each tool's config directory, backup policy, and cloud sync connection details)
@@ -543,7 +543,7 @@ Note: Routing and Aggregation write `127.0.0.1` as the address into the config. 
 
 CC Switch itself only ships as a desktop app that requires a graphical interface (see [Download & Installation](#download--installation) for system requirements). For servers, SSH sessions, or machines without a desktop environment, we recommend the community-maintained **[CC Switch CLI](https://github.com/SaladDay/cc-switch-cli)**: it offers both an interactive terminal UI (TUI) and a command-line mode, supports Claude Code, Codex, Gemini CLI, OpenCode, OpenClaw, Hermes, and Pi, and can be installed via Homebrew (`brew install cc-switch-cli`) or an install script.
 
-By default, CC Switch CLI shares the `~/.cc-switch` data directory with the desktop app and is compatible with the desktop app's WebDAV sync. The two projects are released separately, and the database version the CLI supports sometimes lags behind the desktop app; if you see a "database version is too new" message, upgrade the CLI or wait for it to catch up.
+By default, CC Switch CLI shares the `~/.asx` data directory with the desktop app and is compatible with the desktop app's WebDAV sync. The two projects are released separately, and the database version the CLI supports sometimes lags behind the desktop app; if you see a "database version is too new" message, upgrade the CLI or wait for it to catch up.
 
 </details>
 

@@ -356,7 +356,7 @@ async fn update_tray_menu(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // 设置 panic hook，在应用崩溃时记录日志到 <app_config_dir>/crash.log（默认 ~/.cc-switch/crash.log）
+    // 设置 panic hook，在应用崩溃时记录日志到 <app_config_dir>/crash.log（默认 ~/.asx/crash.log）
     panic_hook::setup_panic_hook();
 
     let mut builder = tauri::Builder::default();
@@ -524,6 +524,10 @@ pub fn run() {
                 log::set_max_level(log::LevelFilter::Info);
                 log::info!("=== CC Switch v{} started ===", env!("CARGO_PKG_VERSION"));
             }
+
+            // 数据目录已从 ~/.asx 更名为 ~/.asx：首次启动把旧目录整体搬迁过来，
+            // 必须在打开数据库等任何读取数据目录的操作之前完成。
+            crate::config::migrate_legacy_app_data_dir();
 
             // 首次读取覆盖路径时 logger 尚未可用；此处重放一次，
             // 让 Store 损坏或路径无效等启动警告能够真正落盘。
@@ -693,7 +697,7 @@ pub fn run() {
             // 设置 AppHandle 用于代理故障转移时的 UI 更新
             app_state.proxy_service.set_app_handle(app.handle().clone());
 
-            // 补完上次崩溃时写到一半的客户端文件（写前意图在 ~/.cc-switch/live-state.json），
+            // 补完上次崩溃时写到一半的客户端文件（写前意图在 ~/.asx/live-state.json），
             // 要在任何写客户端文件的启动步骤之前。
             crate::mode::operation::recover_on_startup(&app_state.db);
 

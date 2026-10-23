@@ -604,7 +604,7 @@ Notes:
 2. If the confirmation dialog shows an error, the message is the cause. Check it against "Rejected links" above.
 3. Import succeeded but no balance shows: open "Configure usage query" on the provider card and click "Test script" to see the error. The most common causes are a request URL with a different origin, a balance endpoint that doesn't return JSON, and wrong fields in `extractor`.
 4. Import succeeded but requests fail after switching: most likely the API format is wrong (see "Supported apps") or the model name is wrong.
-5. The `iconUrl` icon doesn't show: download failures don't produce an error; the reason is in the CC Switch log (`~/.cc-switch/logs/cc-switch.log`, search for `Skipped deep link icon`). The most common causes are a wrong `Content-Type`, an image over 256 KB, or a URL that requires login or has hotlink protection. Check the response headers with `curl -I`.
+5. The `iconUrl` icon doesn't show: download failures don't produce an error; the reason is in the CC Switch log (`~/.asx/logs/cc-switch.log`, search for `Skipped deep link icon`). The most common causes are a wrong `Content-Type`, an image over 256 KB, or a URL that requires login or has hotlink protection. Check the response headers with `curl -I`.
 
 ## Compatibility with older versions
 

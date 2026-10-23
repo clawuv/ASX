@@ -72,7 +72,7 @@ import { useSkillInstallTargets } from "./useSkillInstallTargets";
 import { describeRepoFailures } from "./repoFailures";
 import type { ZipSkippedSkill } from "@/lib/api/skills";
 
-const BACKUP_DIR = "~/.cc-switch/skill-backups";
+const BACKUP_DIR = "~/.asx/skill-backups";
 
 type SkillsView = "installed" | "discover";
 type StatusFilter = "all" | "updates" | "none" | `app:${AppId}`;

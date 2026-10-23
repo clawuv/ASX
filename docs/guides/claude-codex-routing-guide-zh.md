@@ -62,7 +62,7 @@ CC Switch 的做法是让 Claude Code 始终连本机路由，仍以 Anthropic M
 
 ![方式二：Codex 预设的 ChatGPT 登录状态与账号管理](../images/claude-codex-routing/03-codex-oauth-form.png)
 
-登录凭据保存在 `~/.cc-switch/codex_oauth_auth.json`（不是 `~/.codex/`），与 Codex CLI 自己的登录互不影响；token 会在到期前自动刷新。
+登录凭据保存在 `~/.asx/codex_oauth_auth.json`（不是 `~/.codex/`），与 Codex CLI 自己的登录互不影响；token 会在到期前自动刷新。
 
 ## 第二步：开启本地路由并接管 Claude Code
 

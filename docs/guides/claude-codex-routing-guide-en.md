@@ -62,7 +62,7 @@ Again on the `Claude Code` tab, click the plus button and pick the **`Codex`** p
 
 ![Method 2: ChatGPT login status and account management in the Codex preset](../images/claude-codex-routing/03-codex-oauth-form.png)
 
-The login credentials are stored in `~/.cc-switch/codex_oauth_auth.json` (not `~/.codex/`), independent of the Codex CLI's own login; the token refreshes automatically before it expires.
+The login credentials are stored in `~/.asx/codex_oauth_auth.json` (not `~/.codex/`), independent of the Codex CLI's own login; the token refreshes automatically before it expires.
 
 ## Step 2: Enable local routing and take over Claude Code
 

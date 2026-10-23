@@ -383,7 +383,7 @@
     },
     "unifyCodexHistory": {
       "title": "Unified Codex session history",
-      "message": "When enabled, the Codex CLI resume list shows official subscription and third-party sessions together (the Codex desktop app can show all sessions since a recent update and is unaffected). Note: resuming an old session across providers may fail because the other backend cannot decrypt its encrypted_content reasoning.\n\nYou can also migrate your existing official session history into the shared list (backed up to ~/.cc-switch/backups first; you can restore it when turning this off).",
+      "message": "When enabled, the Codex CLI resume list shows official subscription and third-party sessions together (the Codex desktop app can show all sessions since a recent update and is unaffected). Note: resuming an old session across providers may fail because the other backend cannot decrypt its encrypted_content reasoning.\n\nYou can also migrate your existing official session history into the shared list (backed up to ~/.asx/backups first; you can restore it when turning this off).",
       "migrateExisting": "Also migrate existing official session history",
       "confirm": "I understand, enable"
     },
@@ -916,7 +916,7 @@
     "configDirectoryDescription": "When using Claude Code or Codex in environments like WSL, you can manually specify the configuration directory to the one in WSL to keep provider data consistent with the main environment.",
     "appConfigDir": "CC Switch Configuration Directory",
     "appConfigDirDescription": "Customize the storage location for CC Switch configuration (point to cloud sync folder to enable config sync)",
-    "browsePlaceholderApp": "e.g., C:\\Users\\Administrator\\.cc-switch",
+    "browsePlaceholderApp": "e.g., C:\\Users\\Administrator\\.asx",
     "claudeConfigDir": "Claude Code Configuration Directory",
     "claudeConfigDirDescription": "Override Claude configuration directory (settings.json). Custom directories store .claude.json (MCP) inside the directory; the default ~/.claude directory keeps Claude Code's split ~/.claude.json path.",
     "codexConfigDir": "Codex Configuration Directory",
@@ -950,7 +950,7 @@
     "upToDate": "Up to Date",
     "aboutHint": "View version information and update status.",
     "portableMode": "Portable mode: updates require manual download.",
-    "portableUpdateHint": "Portable mode: the button above downloads the new zip. Extract it and replace your existing cc-switch.exe. Your settings and data live in .cc-switch under your user folder and are not affected.",
+    "portableUpdateHint": "Portable mode: the button above downloads the new zip. Extract it and replace your existing cc-switch.exe. Your settings and data live in .asx under your user folder and are not affected.",
     "updateAvailable": "New version available: {{version}}",
     "updateBadge": "Update available",
     "updateFailed": "Update installation failed, attempted to open download page.",

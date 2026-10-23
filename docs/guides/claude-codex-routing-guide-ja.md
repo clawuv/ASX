@@ -62,7 +62,7 @@ CC Switch を開き、上部の `Claude Code` タブへ切り替え、右上の�
 
 ![方式 2: Codex プリセットの ChatGPT ログイン状態とアカウント管理](../images/claude-codex-routing/03-codex-oauth-form.png)
 
-ログイン認証情報は `~/.cc-switch/codex_oauth_auth.json`（`~/.codex/` ではありません）に保存され、Codex CLI 自身のログインとは互いに影響しません。token は有効期限前に自動的に更新されます。
+ログイン認証情報は `~/.asx/codex_oauth_auth.json`（`~/.codex/` ではありません）に保存され、Codex CLI 自身のログインとは互いに影響しません。token は有効期限前に自動的に更新されます。
 
 ## Step 2: ローカルルーティングを有効にして Claude Code をルーティングする
 

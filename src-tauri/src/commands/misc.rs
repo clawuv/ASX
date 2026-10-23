@@ -104,7 +104,7 @@ fn portable_zip_url(version: &str, arm64: bool) -> Option<String> {
     ))
 }
 
-/// 便携版更新：直接下载对应架构的新版压缩包（解压覆盖即可，数据在 ~/.cc-switch 不受影响）。
+/// 便携版更新：直接下载对应架构的新版压缩包（解压覆盖即可，数据在 ~/.asx 不受影响）。
 /// 不做原地替换自身 exe：那样很容易被杀毒软件当成病毒拦截。
 #[tauri::command]
 pub async fn open_portable_update_download(
@@ -6535,9 +6535,9 @@ mod tests {
     fn agy_key_launch() -> ProviderLaunch {
         ProviderLaunch {
             title: "Using a private Antigravity profile for this provider:",
-            detail: Some(PathBuf::from("/home/me/.cc-switch/agy/relay")),
+            detail: Some(PathBuf::from("/home/me/.asx/agy/relay")),
             program: "agy",
-            args: vec!["--gemini_dir=/home/me/.cc-switch/agy/relay".to_string()],
+            args: vec!["--gemini_dir=/home/me/.asx/agy/relay".to_string()],
             batch_command: format!("agy \"--gemini_dir=%{AGY_DIR_BATCH_VAR}%\""),
             env: vec![
                 ("GEMINI_API_KEY", Some("k'$(echo no)`x`%PATH%".to_string())),
@@ -6545,7 +6545,7 @@ mod tests {
             ],
             batch_vars: vec![(
                 AGY_DIR_BATCH_VAR,
-                r"C:\Users\张三\.cc-switch\agy\relay".to_string(),
+                r"C:\Users\张三\.asx\agy\relay".to_string(),
             )],
             cleanup: Vec::new(),
         }
@@ -6556,7 +6556,7 @@ mod tests {
         let launch = agy_key_launch();
         assert_eq!(
             unix_launch_command(&launch),
-            "env -u CC_SWITCH_LAUNCH_ENV_0 -u CC_SWITCH_LAUNCH_ENV_1 -u GOOGLE_GEMINI_BASE_URL GEMINI_API_KEY=\"$CC_SWITCH_LAUNCH_ENV_0\" agy --gemini_dir=/home/me/.cc-switch/agy/relay"
+            "env -u CC_SWITCH_LAUNCH_ENV_0 -u CC_SWITCH_LAUNCH_ENV_1 -u GOOGLE_GEMINI_BASE_URL GEMINI_API_KEY=\"$CC_SWITCH_LAUNCH_ENV_0\" agy --gemini_dir=/home/me/.asx/agy/relay"
         );
         assert_eq!(
             unix_launch_env_file(&launch),
@@ -6568,7 +6568,7 @@ mod tests {
         };
         assert_eq!(
             unix_launch_command(&plain),
-            "agy --gemini_dir=/home/me/.cc-switch/agy/relay"
+            "agy --gemini_dir=/home/me/.asx/agy/relay"
         );
         assert_eq!(unix_launch_env_file(&plain), "");
     }
@@ -6651,7 +6651,7 @@ mod tests {
         assert!(status.success());
         assert_eq!(
             std::fs::read_to_string(&out).unwrap(),
-            "k'$(echo no)`x`%PATH%\nunset\nunset\n--gemini_dir=/home/me/.cc-switch/agy/relay\n"
+            "k'$(echo no)`x`%PATH%\nunset\nunset\n--gemini_dir=/home/me/.asx/agy/relay\n"
         );
         assert!(
             !env_file.exists(),
@@ -6674,7 +6674,7 @@ mod tests {
             carried,
             vec![(
                 "CC_SWITCH_INTERNAL_ENV_2".to_string(),
-                r"C:\Users\张三\.cc-switch\agy\relay".to_string()
+                r"C:\Users\张三\.asx\agy\relay".to_string()
             )]
         );
     }

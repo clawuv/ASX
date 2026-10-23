@@ -1622,7 +1622,7 @@ mod tests {
                 .join("Application Support")
                 .join("Claude-3p"),
         );
-        paths.device = DeviceStore::at(home.join(".cc-switch"));
+        paths.device = DeviceStore::at(home.join(crate::config::APP_DATA_DIR_NAME));
         paths
     }
 

@@ -383,7 +383,7 @@
     },
     "unifyCodexHistory": {
       "title": "统一 Codex 会话历史",
-      "message": "开启后，Codex CLI 的 resume 列表会把官方订阅与第三方的会话合并显示（Codex 桌面版更新后已经可以显示全部会话，不受影响）。注意：跨供应商继续旧会话时，可能因对方后端无法解密 encrypted_content 推理内容而失败。\n\n可选择同时把现有官方会话历史迁入共享列表（迁移前自动备份到 ~/.cc-switch/backups，关闭开关时可选择恢复）。",
+      "message": "开启后，Codex CLI 的 resume 列表会把官方订阅与第三方的会话合并显示（Codex 桌面版更新后已经可以显示全部会话，不受影响）。注意：跨供应商继续旧会话时，可能因对方后端无法解密 encrypted_content 推理内容而失败。\n\n可选择同时把现有官方会话历史迁入共享列表（迁移前自动备份到 ~/.asx/backups，关闭开关时可选择恢复）。",
       "migrateExisting": "同时迁入现有官方会话历史",
       "confirm": "我已了解，继续开启"
     },
@@ -916,7 +916,7 @@
     "configDirectoryDescription": "在 WSL 等环境使用 Claude Code 或 Codex 的时候，可手动指定为 WSL 里的配置目录，供应商数据与主环境保持一致。",
     "appConfigDir": "CC Switch 配置目录",
     "appConfigDirDescription": "自定义 CC Switch 的配置存储位置（指定到云同步文件夹即可云同步配置）",
-    "browsePlaceholderApp": "例如：C:\\Users\\Administrator\\.cc-switch",
+    "browsePlaceholderApp": "例如：C:\\Users\\Administrator\\.asx",
     "claudeConfigDir": "Claude Code 配置目录",
     "claudeConfigDirDescription": "覆盖 Claude 配置目录 (settings.json)。真正自定义目录会在目录内存放 Claude MCP 的 .claude.json；默认 ~/.claude 目录仍使用 Claude 默认的 ~/.claude.json。",
     "codexConfigDir": "Codex 配置目录",
@@ -950,7 +950,7 @@
     "upToDate": "已是最新",
     "aboutHint": "查看版本信息与更新状态。",
     "portableMode": "当前为便携版，更新需手动下载。",
-    "portableUpdateHint": "便携版：点击上方按钮会下载新版压缩包，解压后覆盖原来的 cc-switch.exe 即可。配置和数据保存在用户目录下的 .cc-switch，不会因覆盖而丢失。",
+    "portableUpdateHint": "便携版：点击上方按钮会下载新版压缩包，解压后覆盖原来的 cc-switch.exe 即可。配置和数据保存在用户目录下的 .asx，不会因覆盖而丢失。",
     "updateAvailable": "检测到新版本：{{version}}",
     "updateBadge": "有更新可用",
     "updateFailed": "更新安装失败，已尝试打开下载页面。",
