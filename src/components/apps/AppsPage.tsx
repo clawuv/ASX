@@ -204,13 +204,11 @@ export function AppsPage() {
     );
   };
 
-  const visibilitySwitch = (app: AppId, installed = true) => (
+  const visibilitySwitch = (app: AppId) => (
     <Switch
       size="sm"
       checked={visibleApps[app]}
-      disabled={
-        !settings || !installed || (visibleApps[app] && visibleCount <= 1)
-      }
+      disabled={!settings || (visibleApps[app] && visibleCount <= 1)}
       onCheckedChange={(checked) => setVisible(app, checked)}
       aria-label={t("appsPage.showInSidebar", { name: APP_DISPLAY_NAME[app] })}
     />
@@ -447,10 +445,7 @@ export function AppsPage() {
                         </HelpTip>
                       </span>
                     }
-                    visibility={visibilitySwitch(
-                      "claude-desktop",
-                      Boolean(desktopStatus?.configured),
-                    )}
+                    visibility={visibilitySwitch("claude-desktop")}
                   />
                 ) : (
                   <ToolRow
@@ -465,10 +460,7 @@ export function AppsPage() {
                         [row.tool]: !prev[row.tool],
                       }))
                     }
-                    visibility={visibilitySwitch(
-                      TOOL_APP_IDS[row.tool],
-                      isToolInstalled(row.tool),
-                    )}
+                    visibility={visibilitySwitch(TOOL_APP_IDS[row.tool])}
                   />
                 ),
               )
