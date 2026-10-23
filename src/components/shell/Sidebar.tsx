@@ -1,7 +1,5 @@
 import { useRef, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
-import { getVersion } from "@tauri-apps/api/app";
 import {
   ArrowLeft,
   ArrowRight,
@@ -638,11 +636,6 @@ function SettingsDirectory({
 }: DirectoryProps) {
   const { t } = useTranslation();
   const { hasUpdate } = useUpdate();
-  const { data: version } = useQuery({
-    queryKey: ["app-version"],
-    queryFn: () => getVersion(),
-    staleTime: Infinity,
-  });
 
   return (
     <>
@@ -654,13 +647,6 @@ function SettingsDirectory({
           collapsed && "no-scrollbar",
         )}
       >
-        <NavItem
-          collapsed={collapsed}
-          selected={false}
-          icon={ArrowLeft}
-          label={t("nav.back")}
-          onClick={onExitSettings}
-        />
         {!collapsed && (
           <div
             aria-hidden="true"
@@ -694,11 +680,28 @@ function SettingsDirectory({
           ))}
         </div>
       </div>
-      {!collapsed && version && (
-        <div className="shrink-0 px-4 pb-4 text-caption text-fg-3">
-          CC Switch v{version}
-        </div>
-      )}
+      {/* 底部固定项前保留分隔线，和主菜单底部设计一致 */}
+      <div
+        className={cn(
+          "my-1.5 h-px shrink-0 bg-border",
+          collapsed ? "mx-[18px]" : "mx-4",
+        )}
+      />
+      <div
+        className={cn(
+          "flex shrink-0 pb-2",
+          collapsed ? "flex-col" : "gap-1 px-2",
+        )}
+      >
+        <NavItem
+          collapsed={collapsed}
+          compact={!collapsed}
+          selected={false}
+          icon={ArrowLeft}
+          label={t("nav.back")}
+          onClick={onExitSettings}
+        />
+      </div>
     </>
   );
 }

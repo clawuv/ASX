@@ -66,7 +66,7 @@ export function AppPageHeader({
           {...DRAG_REGION_ATTR}
           className={cn(
             "m-0 whitespace-nowrap text-fg-2",
-            variant === "app" ? "text-title" : "text-page",
+            "text-section",
             truncateTitle && "min-w-0 truncate",
           )}
         >
