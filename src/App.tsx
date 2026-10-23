@@ -248,17 +248,14 @@ function App() {
     );
     return {
       ...visibleApps,
-      mcode:
-        Boolean(visibleApps.mcode) && installedOptionalAgents.has("mcode"),
+      mcode: Boolean(visibleApps.mcode) && installedOptionalAgents.has("mcode"),
       agy: Boolean(visibleApps.agy) && installedOptionalAgents.has("agy"),
     };
   }, [optionalAgentVersions.data, visibleApps]);
 
   useEffect(() => {
     if (!navVisibleApps[activeApp]) {
-      setActiveApp(
-        APP_IDS.find((app) => navVisibleApps[app]) ?? "claude",
-      );
+      setActiveApp(APP_IDS.find((app) => navVisibleApps[app]) ?? "claude");
     }
   }, [navVisibleApps, activeApp]);
 
@@ -1665,7 +1662,7 @@ function App() {
         <main
           ref={mainScrollRef}
           id="content-area"
-          className="relative isolate flex min-w-0 flex-1 flex-col overflow-hidden"
+          className="relative isolate mt-2 mb-2 mr-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-panel"
         >
           {/* 可见卡片本体：四边贴满窗口（左侧贴侧栏），页头等内容叠在其上不动 */}
           <div

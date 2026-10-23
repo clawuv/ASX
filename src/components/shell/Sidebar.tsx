@@ -44,7 +44,6 @@ import { useSidebarStatus } from "@/hooks/useSidebarStatus";
 import { HoverTip } from "@/components/ui/hover-tip";
 import { DRAG_REGION_ATTR, DRAG_REGION_STYLE, isMac } from "@/lib/platform";
 import { cn } from "@/lib/utils";
-import ccswitchLogo from "@/assets/icons/logo.svg";
 
 const NO_DRAG = { WebkitAppRegion: "no-drag" } as React.CSSProperties;
 
@@ -83,9 +82,9 @@ export function Sidebar(props: SidebarProps) {
   const { collapsed, toggle } = useSidebarCollapsed(navRef);
   const { view } = props;
   const inSettings = view === "settings";
-  // macOS 收起后侧栏不占宽度，只把按钮悬浮在原位置；其他平台继续用图标轨。
-  const showCollapsedDirectory = !collapsed || !isMac();
-  const collapseToOverlay = collapsed && isMac();
+  // 收起后侧栏不占宽度，只把按钮悬浮在原位置；所有平台保持同一套交互。
+  const showCollapsedDirectory = !collapsed;
+  const collapseToOverlay = collapsed;
 
   return (
     <nav
@@ -94,7 +93,10 @@ export function Sidebar(props: SidebarProps) {
       className={cn(
         "relative flex h-full shrink-0 flex-col whitespace-nowrap text-body text-fg-1",
         collapseToOverlay
-          ? "sidebar-overlay-collapsed overflow-visible bg-transparent"
+          ? cn(
+              "sidebar-overlay-collapsed overflow-visible bg-transparent",
+              isMac() && "sidebar-overlay-mac",
+            )
           : // 菜单区深色下透出根节点的窗框渐变（.app-frame-gradient），浅色用侧栏底色
             "sidebar-gradient overflow-hidden bg-sidebar dark:bg-transparent",
       )}
@@ -211,15 +213,21 @@ function SidebarTopBar({
     );
   }
 
-  // 收起后按钮保持展开时的坐标不变；轨道加宽后菜单仍然只显示图标。
-  if (collapsed && isMac()) {
+  // 收起后按钮保持展开时的坐标不变；侧栏让位给内容区，菜单完全隐藏。
+  if (collapsed) {
     return (
       <div
         className="relative h-[52px] w-0 shrink-0"
         {...DRAG_REGION_ATTR}
         style={DRAG_REGION_STYLE as React.CSSProperties}
       >
-        <div className="absolute left-[80px] top-[10px] z-[3]" style={NO_DRAG}>
+        <div
+          className={cn(
+            "absolute top-[12px] z-[3]",
+            isMac() ? "left-[80px] top-[10px]" : "left-[8px]",
+          )}
+          style={NO_DRAG}
+        >
           <div className="flex items-center gap-0.5">
             {toggleButton}
             {historyButtons}
@@ -233,29 +241,11 @@ function SidebarTopBar({
     <div
       className={cn(
         // 顶条贴住窗口顶（与卡片 mt-0 一致），页头标题保持水平对齐
-        "flex h-[52px] shrink-0 items-center gap-0.5 px-2",
-        collapsed && "justify-center",
+        "flex h-[52px] shrink-0 items-center justify-start gap-1.5 px-2",
       )}
       {...DRAG_REGION_ATTR}
       style={DRAG_REGION_STYLE as React.CSSProperties}
     >
-      {!collapsed && !isMac() && (
-        // 左上角品牌（Windows / Linux）：图标 + 名字；me-auto 把收起按钮推到顶条最右端——
-        // 一行从左排开，与参考稿的顶栏一致。macOS 左上角留给红绿灯，不放。
-        // 图片不接收指针事件，拖它也是在拖窗口。
-        // ps-2 与下方菜单项图标（mx-2 + px-2 = 16px）同一条左对齐线
-        <span className="pointer-events-none me-auto flex min-w-0 items-center gap-2 ps-2">
-          <img
-            src={ccswitchLogo}
-            alt=""
-            draggable={false}
-            className="h-[22px] w-[22px] shrink-0"
-          />
-          <span className="truncate text-strong font-semibold text-fg-1">
-            CC Switch
-          </span>
-        </span>
-      )}
       <div className="flex items-center gap-0.5">
         {toggleButton}
         {historyButtons}

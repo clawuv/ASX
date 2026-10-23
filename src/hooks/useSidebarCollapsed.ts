@@ -14,8 +14,6 @@ export const SIDEBAR_AUTO_COLLAPSE_WIDTH = 960;
 const STORAGE_KEY = "cc-switch-sidebar-collapsed";
 
 export const SIDEBAR_EXPANDED_WIDTH = 200;
-/** 收起时的图标轨宽度：macOS 完全让位给内容区，收起按钮悬浮在原位置 */
-export const sidebarRailWidth = () => (isMac() ? 108 : 56);
 
 const TOGGLE_DURATION_MS = 200;
 const TOGGLE_EASING = "cubic-bezier(0.2, 0, 0, 1)";
@@ -25,6 +23,14 @@ let running: {
   edge: () => number;
 } | null = null;
 
+/** 收起后侧栏宽度归零，但内容卡片还保留 8px 左缘间隙。 */
+const CONTENT_AREA_COLLAPSED_MARGIN = 8;
+
+/** 动画里的“侧栏 / 内容卡片分界线”位置。 */
+function contentAreaLeftEdge(sidebarWidth: number) {
+  return sidebarWidth === 0 ? CONTENT_AREA_COLLAPSED_MARGIN : sidebarWidth;
+}
+
 /**
  * 侧栏开合不过渡 width：宽度动画每帧都要在主线程重排，WKWebView 主线程渲染还限在 60fps 左右，ProMotion 屏上看着发顿。
  * 改成侧栏和内容区一步排到最终宽度（只排一次），再用一块盖板的 transform 动画画出「侧栏边缘在动」——
@@ -32,6 +38,7 @@ let running: {
  * - 展开：盖板是内容区底色，先挡住侧栏多出来的那段，往右滑进内容区底下，把侧栏露出来；
  * - 收起：盖板是侧栏底色，先挡住内容区左边那段，往左滑进侧栏底下，把内容露出来。
  * 盖板的边就是这段时间的分隔线。
+ * 右缘加内容卡片同款圆角，滑动时不会把卡片的左上/左下圆角遮成直角。
  */
 function animateToggle(nav: HTMLElement, fromWidth: number, toWidth: number) {
   const main = document.getElementById("content-area");
@@ -39,7 +46,7 @@ function animateToggle(nav: HTMLElement, fromWidth: number, toWidth: number) {
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
 
   // 上一次还没滑完就再切：从当前看到的边缘位置接着滑，不跳
-  const startEdge = running ? running.edge() : fromWidth;
+  const startEdge = running ? running.edge() : contentAreaLeftEdge(fromWidth);
   if (running) {
     // cancel 事件是异步派发的，旧盖板和层级在这里同步收拾掉，免得它晚到时拆掉新动画的
     const previous = running;
@@ -51,21 +58,25 @@ function animateToggle(nav: HTMLElement, fromWidth: number, toWidth: number) {
   main.style.removeProperty("z-index");
   if (startEdge === toWidth) return;
 
-  const expanding = toWidth > startEdge;
-  const left = Math.min(startEdge, toWidth);
-  const width = Math.abs(toWidth - startEdge);
+  const targetEdge = contentAreaLeftEdge(toWidth);
+  const expanding = targetEdge > startEdge;
+  const left = Math.min(startEdge, targetEdge);
+  const width = Math.abs(targetEdge - startEdge);
   const line = "hsl(var(--border))";
   const cover = document.createElement("div");
+  cover.className = "app-frame-gradient";
   cover.setAttribute("aria-hidden", "true");
   Object.assign(cover.style, {
     position: "fixed",
-    top: "0",
-    bottom: "0",
+    top: "8px",
+    bottom: "8px",
     left: `${left}px`,
     width: `${width}px`,
     zIndex: "1",
     pointerEvents: "none",
     background: expanding ? "var(--bg-app)" : "var(--bg-sidebar)",
+    borderTopRightRadius: "10px",
+    borderBottomRightRadius: "10px",
     boxShadow: expanding ? `-1px 0 0 0 ${line}` : `1px 0 0 0 ${line}`,
   });
   nav.after(cover);
@@ -101,7 +112,7 @@ function animateToggle(nav: HTMLElement, fromWidth: number, toWidth: number) {
 }
 
 export const sidebarWidth = (collapsed: boolean) =>
-  collapsed ? (isMac() ? 0 : sidebarRailWidth()) : SIDEBAR_EXPANDED_WIDTH;
+  collapsed ? 0 : SIDEBAR_EXPANDED_WIDTH;
 
 function readManualPreference(): boolean | null {
   try {

@@ -134,11 +134,10 @@ export function AppsPage() {
     ? ROWS.filter((row) =>
         appRowName(row).toLowerCase().includes(normalizedSearchQuery),
       )
-    : ROWS.filter(
-        (row) =>
-          row.kind !== "tool"
-            ? true
-            : !isOptionalAgentTool(row.tool) || isToolInstalled(row.tool),
+    : ROWS.filter((row) =>
+        row.kind !== "tool"
+          ? true
+          : !isOptionalAgentTool(row.tool) || isToolInstalled(row.tool),
       );
 
   useLayoutEffect(() => {

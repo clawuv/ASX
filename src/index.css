@@ -70,6 +70,16 @@ html:not(.dark) .sidebar-gradient {
   );
 }
 
+/* 浅色窗框渐变：沿用深色的上亮下暗结构，让白色内容卡片在边缘处浮出来 */
+html:not(.dark) .app-frame-gradient {
+  background-image: linear-gradient(
+    180deg,
+    #f8f8fa 0%,
+    #f1f1f4 45%,
+    #e9e9ed 100%
+  );
+}
+
 @layer base {
   /* shadcn 组件用的 HSL token（可以带 /50 这类透明度），取值对齐 v7 设计稿的 tokens.css */
   :root {
@@ -137,7 +147,7 @@ html:not(.dark) .sidebar-gradient {
      --action-* 是实心按钮、开关的开、勾选框的操作色；主题色 #F97316 只覆盖这一组和 --ring。
      --action-text：橙色当文字用（链接）时用深一档，保证对比度。 */
   :root {
-    --bg-app: #ffffff;
+    --bg-app: #f6f6f8;
     /* 侧栏比窗框（--bg-app 白）深一档，让内容区白底上的圆角画布「浮」出来；
        同为 240 冷灰族，与 --bg-subtle / --border 保持同族过渡 */
     --bg-sidebar: #f2f2f4;
@@ -678,9 +688,23 @@ input[type="password"]::-ms-clear {
   }
 }
 
-/* macOS 收起后侧栏宽度归零，但收起按钮仍悬浮在原位置；
-   所有页头右移让开按钮，正文继续占满左侧内容区。 */
-nav.sidebar-overlay-collapsed ~ #content-area header[data-app-page-header] {
+/* 收起后侧栏宽度归零，收起按钮仍悬浮在原位置；
+   页头右移让开按钮，正文继续占满左侧内容区。macOS 还要让开红绿灯。 */
+nav.sidebar-overlay-collapsed.sidebar-overlay-mac
+  ~ #content-area
+  header[data-app-page-header] {
   /* 收起按钮 + 后退/前进按钮：80 起步，三枚 28px 按钮到 168，再留一档间距 */
   padding-left: 184px;
+}
+
+nav.sidebar-overlay-collapsed:not(.sidebar-overlay-mac)
+  ~ #content-area
+  header[data-app-page-header] {
+  /* Windows / Linux：顶条三枚按钮从 8px 到约 100px */
+  padding-left: 104px;
+}
+
+/* 侧栏收起后内容卡片与窗口左缘留出同款 8px 间隙 */
+nav.sidebar-overlay-collapsed ~ #content-area {
+  margin-left: 8px;
 }
